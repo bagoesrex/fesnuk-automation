@@ -26,19 +26,17 @@ export async function syncGroupsFromFacebook(
 
     const page = await ctx.newPage();
 
-    // Navigate to the groups your account has joined
-    await page.goto('https://www.facebook.com/groups/feed', { waitUntil: 'domcontentloaded', timeout: 30000 });
-    await delay(2000);
+    // /groups/joins/ is the dedicated "Groups you've joined" page — most complete source
+    await page.goto('https://www.facebook.com/groups/joins/', { waitUntil: 'domcontentloaded', timeout: 30000 });
+    await delay(2500);
 
-    // Check if we got redirected to login (session expired)
     if (page.url().includes('/login')) {
       throw new Error('Session expired — please re-setup the account session');
     }
 
-    const scraped = await scrapeGroupsFromFeed(page);
-    logger.info(`Scraped ${scraped.length} groups from Facebook`);
+    const scraped = await scrapeAllGroups(page);
+    logger.info(`Scraped ${scraped.length} groups from facebook.com/groups/joins/`);
 
-    // Upsert all scraped groups
     let added = 0;
     let skipped = 0;
     for (const g of scraped) {
@@ -57,75 +55,71 @@ export async function syncGroupsFromFacebook(
   }
 }
 
-async function scrapeGroupsFromFeed(page: import('playwright').Page): Promise<ScrapedGroup[]> {
-  const groups: ScrapedGroup[] = [];
+async function scrapeAllGroups(page: import('playwright').Page): Promise<ScrapedGroup[]> {
   const seen = new Set<string>();
+  const groups: ScrapedGroup[] = [];
 
-  // Scroll and collect groups from the left sidebar / groups list
-  // Facebook renders groups in the left nav on /groups/feed
-  await autoScroll(page, 3);
+  // Keep scrolling until no new groups are found in 3 consecutive passes
+  let staleRounds = 0;
+  const MAX_STALE = 3;
 
-  // Extract all links that match /groups/<id> pattern
-  const links = await page.evaluate((): Array<{ href: string; text: string }> => {
-    const anchors = Array.from(document.querySelectorAll('a[href*="/groups/"]'));
-    return anchors.map((a) => ({
-      href: (a as HTMLAnchorElement).href,
-      text: a.textContent?.trim() ?? '',
-    }));
-  });
+  while (staleRounds < MAX_STALE) {
+    const before = seen.size;
 
-  for (const { href, text } of links) {
-    // Only keep proper group URLs, exclude sub-pages like /members, /media, /feed etc.
-    const match = href.match(/facebook\.com\/groups\/([^/?&#]+)\/?$/);
-    if (!match) continue;
-    const fbGroupId = match[1];
-    // Skip generic paths
-    if (['feed', 'discover', 'create', 'joins'].includes(fbGroupId)) continue;
-    if (seen.has(fbGroupId)) continue;
-    seen.add(fbGroupId);
-
-    const name = text || fbGroupId;
-    const url = `https://www.facebook.com/groups/${fbGroupId}`;
-    groups.push({ name, url, fbGroupId });
-  }
-
-  // If the sidebar didn't yield enough, also check the /groups page
-  if (groups.length < 3) {
-    await page.goto('https://www.facebook.com/groups/?category=joined', { waitUntil: 'domcontentloaded', timeout: 30000 });
-    await delay(2000);
-    await autoScroll(page, 5);
-
-    const moreLinks = await page.evaluate((): Array<{ href: string; text: string }> => {
-      const anchors = Array.from(document.querySelectorAll('a[href*="/groups/"]'));
-      return anchors.map((a) => ({
-        href: (a as HTMLAnchorElement).href,
-        text: a.textContent?.trim() ?? '',
-      }));
-    });
-
-    for (const { href, text } of moreLinks) {
-      const match = href.match(/facebook\.com\/groups\/([^/?&#]+)\/?$/);
-      if (!match) continue;
-      const fbGroupId = match[1];
-      if (['feed', 'discover', 'create', 'joins'].includes(fbGroupId)) continue;
-      if (seen.has(fbGroupId)) continue;
-      seen.add(fbGroupId);
-
-      const name = text || fbGroupId;
-      const url = `https://www.facebook.com/groups/${fbGroupId}`;
-      groups.push({ name, url, fbGroupId });
+    const links = await extractGroupLinks(page);
+    for (const { fbGroupId, name, url } of links) {
+      if (!seen.has(fbGroupId)) {
+        seen.add(fbGroupId);
+        groups.push({ fbGroupId, name, url });
+      }
     }
+
+    const after = seen.size;
+    logger.debug(`Scroll pass: found ${after - before} new groups (total ${after})`);
+
+    if (after === before) {
+      staleRounds++;
+    } else {
+      staleRounds = 0;
+    }
+
+    // scroll down to load more
+    await page.evaluate(() => window.scrollBy(0, window.innerHeight * 2));
+    await delay(1800);
   }
 
   return groups;
 }
 
-async function autoScroll(page: import('playwright').Page, times: number): Promise<void> {
-  for (let i = 0; i < times; i++) {
-    await page.evaluate(() => window.scrollBy(0, window.innerHeight));
-    await delay(1200);
-  }
-  // scroll back to top so sidebar is visible
-  await page.evaluate(() => window.scrollTo(0, 0));
-  await delay(500);
+async function extractGroupLinks(page: import('playwright').Page): Promise<ScrapedGroup[]> {
+  return page.evaluate((): Array<{ fbGroupId: string; name: string; url: string }> => {
+    const results: Array<{ fbGroupId: string; name: string; url: string }> = [];
+    const anchors = Array.from(document.querySelectorAll('a[href*="/groups/"]'));
+
+    for (const el of anchors) {
+      const href = (el as HTMLAnchorElement).href;
+      // Match clean group URLs only: /groups/<id> with no sub-path after
+      const match = href.match(/facebook\.com\/groups\/([^/?&#]+)\/?(?:[?#].*)?$/);
+      if (!match) continue;
+
+      const fbGroupId = match[1];
+      // Skip reserved paths
+      if (['feed', 'discover', 'create', 'joins', 'search', 'you'].includes(fbGroupId)) continue;
+      // Skip numeric-only IDs that are likely post IDs embedded in group URLs
+      // (real group IDs can be numeric, so we keep them — just filter sub-pages)
+      if (href.match(/\/groups\/[^/]+\/(permalink|posts|media|members|events|files|about|announcements)/)) continue;
+
+      // Prefer the closest meaningful text node (group name is usually the direct text)
+      const text = (el.textContent ?? '').trim().replace(/\s+/g, ' ');
+      if (!text || text.length > 120) continue; // skip empty or nav-wrapper links
+
+      results.push({
+        fbGroupId,
+        name: text,
+        url: `https://www.facebook.com/groups/${fbGroupId}`,
+      });
+    }
+
+    return results;
+  });
 }
