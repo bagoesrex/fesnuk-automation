@@ -34,7 +34,7 @@ Facebook Group Auto-Poster is a self-hosted automation system for scheduling and
 
 | Layer       | Technology                              | Purpose                                    |
 |-------------|-----------------------------------------|--------------------------------------------|
-| Runtime     | Node.js 20+                             | JavaScript runtime                         |
+| Runtime     | Bun 1.x                                 | JavaScript runtime + package manager + native TypeScript |
 | Language    | TypeScript                              | Type safety across backend & frontend      |
 | Backend     | Express.js                              | REST API server                            |
 | Frontend    | React + Vite                            | Web dashboard SPA                          |

@@ -6,7 +6,7 @@ Instructions for AI agents working on this project.
 
 ## Project Overview
 
-**Facebook Group Auto-Poster** — A self-hosted automation system that schedules and posts content (text + images) to multiple Facebook Groups using browser automation. Built with Node.js, TypeScript, Express, React, SQLite, Playwright, and node-cron.
+**Facebook Group Auto-Poster** — A self-hosted automation system that schedules and posts content (text + images) to multiple Facebook Groups using browser automation. Built with Bun, TypeScript, Express, React, SQLite, Playwright, and node-cron.
 
 ---
 
@@ -53,7 +53,7 @@ facebook-automation/
 
 | Concern         | Library / Tool                  |
 |-----------------|---------------------------------|
-| Backend runtime | Node.js 20+, TypeScript         |
+| Backend runtime | Bun 1.x, TypeScript             |
 | HTTP server     | Express.js                      |
 | Database        | SQLite via Prisma ORM           |
 | Browser engine  | Playwright + playwright-extra (stealth) |
@@ -102,8 +102,8 @@ facebook-automation/
 ## Database Rules
 
 - **Prisma is the source of truth.** Never modify `dev.db` directly.
-- After any schema change: `npx prisma migrate dev --name <description>`
-- After pulling schema changes: `npx prisma migrate deploy` + `npx prisma generate`
+- After any schema change: `bunx prisma migrate dev --name <description>`
+- After pulling schema changes: `bunx prisma migrate deploy` + `bunx prisma generate`
 - `imagePaths` in `Post` is stored as a JSON string — parse/stringify in the service layer
 - Never delete PostLog records — they are the audit trail
 
@@ -133,7 +133,7 @@ Examples:
 ```
 feat(scheduler): add random delay between group postings
 fix(poster): handle expired session before posting run
-chore(backend): init express project with typescript
+chore(backend): init bun project with typescript
 docs: add ARCHITECTURE and DATABASE docs
 ```
 
@@ -170,13 +170,13 @@ Rules:
 
 ```bash
 # Backend (port 3001)
-cd backend && npm run dev
+cd backend && bun run dev
 
 # Frontend (port 5173)
-cd frontend && npm run dev
+cd frontend && bun run dev
 
 # Prisma Studio (optional, port 5555)
-cd backend && npx prisma studio
+cd backend && bunx prisma studio
 ```
 
 See `docs/SETUP.md` for full setup instructions including session initialization.

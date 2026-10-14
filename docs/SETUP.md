@@ -2,11 +2,20 @@
 
 ## Prerequisites
 
-| Tool    | Version  | Notes                                     |
-|---------|----------|-------------------------------------------|
-| Node.js | 20+      | [nodejs.org](https://nodejs.org)          |
-| npm     | 9+       | Comes with Node.js                        |
-| Git     | any      |                                           |
+| Tool | Version | Notes                              |
+|------|---------|------------------------------------|
+| Bun  | 1.x+    | [bun.sh](https://bun.sh)           |
+| Git  | any     |                                    |
+
+Install Bun (if not already):
+
+```bash
+# Windows (PowerShell)
+powershell -c "irm bun.sh/install.ps1 | iex"
+
+# macOS / Linux
+curl -fsSL https://bun.sh/install | bash
+```
 
 ## 1. Clone & Install Dependencies
 
@@ -16,11 +25,11 @@ cd facebook-automation
 
 # Install backend dependencies
 cd backend
-npm install
+bun install
 
 # Install frontend dependencies
 cd ../frontend
-npm install
+bun install
 ```
 
 ## 2. Environment Variables
@@ -60,10 +69,10 @@ VITE_API_URL=http://localhost:3001/api/v1
 cd backend
 
 # Run Prisma migrations (creates dev.db automatically)
-npx prisma migrate dev --name init
+bunx prisma migrate dev --name init
 
 # (Optional) Open Prisma Studio to inspect data
-npx prisma studio
+bunx prisma studio
 ```
 
 ## 4. Create Required Directories
@@ -80,14 +89,14 @@ Open two terminals:
 **Terminal 1 – Backend:**
 ```bash
 cd backend
-npm run dev
+bun run dev
 # Server starts at http://localhost:3001
 ```
 
 **Terminal 2 – Frontend:**
 ```bash
 cd frontend
-npm run dev
+bun run dev
 # Dashboard opens at http://localhost:5173
 ```
 
@@ -108,17 +117,17 @@ You only need to redo this when your session expires (typically every 30–90 da
 ```bash
 # Build frontend
 cd frontend
-npm run build
+bun run build
 # Static files go to frontend/dist/
 
 # Build backend
 cd backend
-npm run build
+bun run build
 # Compiled JS goes to backend/dist/
 
 # Start production server (serves both API and static frontend)
 cd backend
-npm start
+bun start
 ```
 
 The production server serves the frontend build at `/` and the API at `/api/v1`.
@@ -129,21 +138,21 @@ The production server serves the frontend build at `/` and the API at `/api/v1`.
 git pull
 
 cd backend
-npm install
-npx prisma migrate deploy   # Apply any new DB migrations
-npm run build
+bun install
+bunx prisma migrate deploy   # Apply any new DB migrations
+bun run build
 
 cd ../frontend
-npm install
-npm run build
+bun install
+bun run build
 ```
 
 ## Troubleshooting
 
-| Problem                         | Solution                                                      |
-|---------------------------------|---------------------------------------------------------------|
-| `Browser not found`             | Run `npx playwright install chromium`                         |
-| `Session expired`               | Redo the Session Setup flow (Step 6)                          |
-| `Port already in use`           | Change `PORT` in `backend/.env`                               |
-| `Prisma migration failed`       | Delete `backend/dev.db` and rerun `prisma migrate dev`        |
-| Posts fail with `selector error`| Facebook may have updated their UI — check GitHub for updates |
+| Problem                          | Solution                                                       |
+|----------------------------------|----------------------------------------------------------------|
+| `Browser not found`              | Run `bunx playwright install chromium`                         |
+| `Session expired`                | Redo the Session Setup flow (Step 6)                           |
+| `Port already in use`            | Change `PORT` in `backend/.env`                                |
+| `Prisma migration failed`        | Delete `backend/dev.db` and rerun `bunx prisma migrate dev`    |
+| Posts fail with `selector error` | Facebook may have updated their UI — check GitHub for updates  |
