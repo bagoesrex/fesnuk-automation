@@ -1,0 +1,14 @@
+{
+  "name": "facebook-automation",
+  "module": "index.ts",
+  "type": "module",
+  "private": true,
+  "devDependencies": {
+    "@e2e-dev/web": "^0.14.0",
+    "@types/bun": "latest",
+    "e2e": "^0.20.0"
+  },
+  "peerDependencies": {
+    "typescript": "^7"
+  }
+}
