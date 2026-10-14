@@ -1,5 +1,6 @@
 import type { Request, Response, NextFunction } from 'express';
 import db from '../config/db.ts';
+import { syncGroupsFromFacebook } from '../services/groupSync.ts';
 
 function extractGroupId(url: string): string | null {
   const match = url.match(/facebook\.com\/groups\/([^/?&#]+)/);
@@ -60,5 +61,24 @@ export async function deleteGroup(req: Request, res: Response, next: NextFunctio
     res.json({ success: true, data: { id } });
   } catch {
     res.status(404).json({ success: false, error: 'Group not found', code: 'NOT_FOUND' });
+  }
+}
+
+export async function syncGroups(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { accountId } = req.body as { accountId?: string };
+    if (!accountId) {
+      res.status(422).json({ success: false, error: 'accountId is required', code: 'VALIDATION_ERROR' });
+      return;
+    }
+    const account = await db.account.findUnique({ where: { id: accountId } });
+    if (!account) {
+      res.status(404).json({ success: false, error: 'Account not found', code: 'NOT_FOUND' });
+      return;
+    }
+    const result = await syncGroupsFromFacebook(account.sessionPath);
+    res.json({ success: true, data: result });
+  } catch (err) {
+    next(err);
   }
 }
