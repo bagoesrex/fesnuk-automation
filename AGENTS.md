@@ -13,7 +13,7 @@ Instructions for AI agents working on this project.
 ## Repository Structure
 
 ```
-facebook-automation/
+fesnuk-automation/
 ├── AGENTS.md                  # This file
 ├── docs/                      # Project documentation (read before coding)
 │   ├── ARCHITECTURE.md        # System design, tech stack, data flow

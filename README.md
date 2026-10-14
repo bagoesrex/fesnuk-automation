@@ -1,4 +1,4 @@
-# Facebook Group Auto-Poster
+# Fesnuk Group Auto-Poster
 
 Self-hosted automation system for scheduling and posting content (text + images) to multiple Facebook Groups using browser automation.
 
@@ -25,8 +25,8 @@ Self-hosted automation system for scheduling and posting content (text + images)
 **Prerequisites:** [Bun](https://bun.sh) and Git installed.
 
 ```bash
-git clone <repo-url> facebook-automation
-cd facebook-automation
+git clone https://github.com/bagoesrex/fesnuk-automation
+cd fesnuk-automation
 ```
 
 **Backend:**
