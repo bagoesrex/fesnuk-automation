@@ -1,0 +1,107 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Account {
+  id          String   @id @default(cuid())
+  name        String
+  sessionPath String
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  schedules Schedule[]
+  postLogs  PostLog[]
+}
+
+model Group {
+  id        String   @id @default(cuid())
+  fbGroupId String   @unique
+  name      String
+  url       String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  scheduleGroups ScheduleGroup[]
+  postLogs       PostLog[]
+}
+
+model Post {
+  id         String   @id @default(cuid())
+  title      String
+  content    String
+  imagePaths String   @default("[]")
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  schedules Schedule[]
+  postLogs  PostLog[]
+}
+
+model Schedule {
+  id             String         @id @default(cuid())
+  name           String
+  cronExpression String
+  delayMinSec    Int            @default(300)
+  delayMaxSec    Int            @default(900)
+  isActive       Boolean        @default(true)
+  status         String         @default("IDLE")
+  lastRunAt      DateTime?
+  nextRunAt      DateTime?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  accountId String
+  account   Account @relation(fields: [accountId], references: [id])
+
+  postId String
+  post   Post   @relation(fields: [postId], references: [id])
+
+  scheduleGroups ScheduleGroup[]
+  postLogs       PostLog[]
+}
+
+// ScheduleStatus: IDLE | RUNNING | PAUSED | ERROR
+// LogStatus: SUCCESS | FAILED | SKIPPED
+// SQLite does not support enums — values are enforced at the service layer
+
+model ScheduleGroup {
+  id    String @id @default(cuid())
+  order Int    @default(0)
+
+  scheduleId String
+  schedule   Schedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+
+  groupId String
+  group   Group  @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@unique([scheduleId, groupId])
+}
+
+model PostLog {
+  id       String    @id @default(cuid())
+  status   String
+  error    String?
+  postedAt DateTime  @default(now())
+
+  scheduleId String
+  schedule   Schedule @relation(fields: [scheduleId], references: [id])
+
+  groupId String
+  group   Group  @relation(fields: [groupId], references: [id])
+
+  postId String
+  post   Post   @relation(fields: [postId], references: [id])
+
+  accountId String
+  account   Account @relation(fields: [accountId], references: [id])
+}
+
+
