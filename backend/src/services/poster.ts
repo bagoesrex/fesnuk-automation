@@ -72,42 +72,81 @@ async function postToGroup(
 
     // human-like: random scroll then pause
     await page.evaluate(() => window.scrollBy(0, 200 + Math.random() * 400));
-    await delay(randomInt(500, 1500));
+    await delay(randomInt(800, 1800));
 
-    // click the post composer box
-    const composer = page.locator('[data-testid="status-attachment-mentions-input"], [aria-label="Write something..."], [role="textbox"]').first();
-    await composer.waitFor({ timeout: 15000 });
-    await composer.click();
-    await delay(randomInt(300, 800));
+    // ── Step 1: Click "Tulis sesuatu..." / "Write something..." trigger ────────
+    // Facebook renders an inline button (role=button, text="Tulis sesuatu...") that opens the composer modal.
+    // DOM confirmed via inspection: [role="button"] with text "Tulis sesuatu..."
+    const composerTrigger = page.locator('[role="button"]', { hasText: /tulis sesuatu|write something|buat postingan publik/i }).first();
+    await composerTrigger.waitFor({ timeout: 15000 });
+    await composerTrigger.click();
+    await delay(randomInt(800, 1500));
 
-    // type content character by character for human-like pacing
+    // ── Step 2: Wait for the composer dialog to open ──────────────────────────
+    // Confirmed: [role="dialog"][aria-label="Buat postingan"] appears after click
+    const dialog = page.locator('[role="dialog"]').filter({ hasText: /buat postingan|create post/i }).first();
+    await dialog.waitFor({ timeout: 10000 });
+
+    // ── Step 3: Click and type into the composer textbox inside the dialog ────
+    // Confirmed: [role="textbox"][aria-label="Buat postingan publik..."] inside dialog
+    const textbox = dialog.locator('[role="textbox"]').first();
+    await textbox.waitFor({ timeout: 10000 });
+    await textbox.click();
+    await delay(randomInt(300, 600));
+
+    // Type content character by character for human-like pacing
     const imagePaths = JSON.parse(post.imagePaths) as string[];
     for (const char of post.content) {
-      await page.keyboard.type(char, { delay: randomInt(30, 120) });
+      await page.keyboard.type(char, { delay: randomInt(30, 100) });
     }
+    await delay(randomInt(400, 800));
 
-    // attach images if any
+    // ── Step 4: Attach images if any ─────────────────────────────────────────
+    // Confirmed: [aria-label="Foto/video"] button opens file picker inside the dialog
     if (imagePaths.length > 0) {
-      const photoBtn = page.locator('[aria-label="Photo/video"], [aria-label="Photo"], [data-testid="photo-video"]').first();
+      const photoBtn = dialog.locator('[aria-label="Foto/video"], [aria-label="Photo/video"]').first();
+      await photoBtn.waitFor({ timeout: 5000 });
       await photoBtn.click();
-      await delay(randomInt(500, 1000));
+      await delay(randomInt(600, 1200));
 
-      const [fileChooser] = await Promise.all([
-        page.waitForEvent('filechooser'),
-        page.locator('input[type="file"]').last().click(),
-      ]);
+      // Wait for file input to be ready then set files directly (more reliable than filechooser event)
+      // The file input for the composer modal is the one with multiple attribute and image+video accept
+      const fileInput = dialog.locator('input[type="file"][multiple]').first();
+      await fileInput.waitFor({ state: 'attached', timeout: 10000 }).catch(() => {
+        // fallback: use any file input
+      });
+
       const absPaths = imagePaths.map((rel) => path.resolve(config.uploadsDir, '..', rel));
-      await fileChooser.setFiles(absPaths);
-      // wait for uploads to finish (progress bar disappears)
-      await page.waitForSelector('[aria-label="Loading"], [role="progressbar"]', { state: 'detached', timeout: 60000 }).catch(() => {});
-      await delay(randomInt(1000, 2000));
+      try {
+        await fileInput.setInputFiles(absPaths);
+      } catch {
+        // Fallback: trigger via filechooser event on the photo button
+        const [fileChooser] = await Promise.all([
+          page.waitForEvent('filechooser', { timeout: 8000 }),
+          photoBtn.click(),
+        ]);
+        await fileChooser.setFiles(absPaths);
+      }
+
+      // Wait for uploads: watch for spinner/progress to disappear
+      await page.waitForSelector('[role="progressbar"], [aria-label="Memuat..."], [aria-label="Loading..."]', {
+        state: 'detached',
+        timeout: 60000,
+      }).catch(() => {}); // ok if never appeared
+      await delay(randomInt(1500, 2500));
     }
 
-    // submit
-    const postBtn = page.locator('[aria-label="Post"], button:has-text("Post")').last();
+    // ── Step 5: Click the "Posting" / "Post" submit button ─────────────────────
+    // Confirmed: [aria-label="Posting"] inside the dialog
+    const postBtn = dialog.locator('[aria-label="Posting"], [aria-label="Post"]').first();
+    await postBtn.waitFor({ timeout: 5000 });
     await postBtn.click();
-    // wait for composer to close / post to appear
-    await delay(randomInt(3000, 5000));
+
+    // Wait for dialog to close (post submitted successfully)
+    await dialog.waitFor({ state: 'detached', timeout: 30000 });
+    await delay(randomInt(2000, 3000));
+
+    logger.info('Post submitted successfully');
   } finally {
     await page.close();
   }
