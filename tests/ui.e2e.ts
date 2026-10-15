@@ -191,7 +191,12 @@ test('schedules - New Schedule modal opens with cron field', async ({ app, scree
 });
 
 test('schedules - can create and delete a schedule', async ({ app, screen, browser }) => {
-  const acc = await db.account.findFirst();
+  let acc = await db.account.findFirst();
+  if (!acc) {
+    acc = await db.account.create({
+      data: { name: 'Sched Fixture Account', sessionPath: 'sessions/sched_fix.json' },
+    });
+  }
   let group = await db.group.findFirst({ where: { isActive: true } });
   if (!group) {
     group = await db.group.create({

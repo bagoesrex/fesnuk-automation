@@ -193,7 +193,7 @@ export default function Schedules() {
                 <td colSpan={6} className="px-5 py-12 text-center text-zinc-400">
                   <p className="text-sm font-medium">No schedules configured</p>
                   <p className="text-xs text-zinc-500 mt-1">
-                    Click <strong>New Schedule</strong> to automate group posting.
+                    Click the button above to automate group posting.
                   </p>
                 </td>
               </tr>
