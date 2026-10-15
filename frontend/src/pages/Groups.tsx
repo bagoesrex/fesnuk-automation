@@ -93,14 +93,14 @@ export default function Groups() {
             className="inline-flex items-center gap-1.5 px-4 py-2 bg-emerald-600 text-white rounded-xl text-sm font-semibold hover:bg-emerald-700 shadow-xs transition-colors"
           >
             <ArrowsClockwise size={16} weight="bold" />
-            ↻ Sync from Facebook
+            Sync from Facebook
           </button>
           <button
             onClick={() => { setShowAdd(true); setErr(''); }}
             className="inline-flex items-center gap-1.5 px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-semibold hover:bg-blue-700 shadow-xs transition-colors"
           >
             <Plus size={16} weight="bold" />
-            + Add Manually
+            Add Manually
           </button>
         </div>
       </div>

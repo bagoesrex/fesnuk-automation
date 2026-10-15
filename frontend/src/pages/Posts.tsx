@@ -245,7 +245,7 @@ export default function Posts() {
             <div className="p-12 text-center text-zinc-400 bg-white rounded-2xl border border-zinc-200/80">
               <p className="text-sm font-medium">No posts yet</p>
               <p className="text-xs text-zinc-500 mt-1">
-                Click <strong>+ Create Post</strong> to compose your first automated message.
+                Click <strong>Create Post</strong> to compose your first automated message.
               </p>
             </div>
           )}

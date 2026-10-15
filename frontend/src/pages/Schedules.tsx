@@ -106,13 +106,15 @@ export default function Schedules() {
             Automated posting cron triggers, target matrix, and pacing intervals.
           </p>
         </div>
-        <button
-          onClick={() => setShowAdd(true)}
-          className="inline-flex items-center gap-1.5 px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-semibold hover:bg-blue-700 shadow-xs transition-colors self-start sm:self-auto"
-        >
-          <Plus size={16} weight="bold" />
-          + New Schedule
-        </button>
+        {!showAdd && (
+          <button
+            onClick={() => setShowAdd(true)}
+            className="inline-flex items-center gap-1.5 px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-semibold hover:bg-blue-700 shadow-xs transition-colors self-start sm:self-auto"
+          >
+            <Plus size={16} weight="bold" />
+            New Schedule
+          </button>
+        )}
       </div>
 
       {/* Main Table */}
