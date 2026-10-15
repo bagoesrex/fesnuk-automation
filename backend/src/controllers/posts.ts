@@ -65,6 +65,13 @@ export async function deletePost(req: Request, res: Response, next: NextFunction
     await Promise.all(
       imagePaths.map((rel) => fs.rm(path.resolve(config.uploadsDir, '..', rel), { force: true }))
     );
+    // cleanup inactive schedules and groups
+    const schedules = await db.schedule.findMany({ where: { postId: id }, select: { id: true } });
+    const scheduleIds = schedules.map((s) => s.id);
+    if (scheduleIds.length > 0) {
+      await db.scheduleGroup.deleteMany({ where: { scheduleId: { in: scheduleIds } } });
+      await db.schedule.deleteMany({ where: { id: { in: scheduleIds } } });
+    }
     await db.post.delete({ where: { id } });
     res.json({ success: true, data: { id } });
   } catch (err) {

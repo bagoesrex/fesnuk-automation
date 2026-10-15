@@ -2,6 +2,7 @@
 
 import { test } from '@e2e-dev/web';
 import { expect } from 'e2e';
+import db from '../backend/src/config/db.ts';
 
 // ── Dashboard ─────────────────────────────────────────────────────────────────
 
@@ -100,6 +101,27 @@ test('groups - Sync modal opens and shows account selector', async ({ app, scree
   await screen.getByRole('button', 'Cancel').tap();
 });
 
+test('groups - can create and delete a group manually', async ({ app, screen, browser }) => {
+  const name = `E2E Group ${Date.now()}`;
+  const url = `https://www.facebook.com/groups/e2e${Date.now()}`;
+
+  await app.open('/groups');
+  const before = await screen.getByRole('button', 'Delete').count();
+
+  await screen.getByRole('button', 'Add Manually', { exact: false }).tap();
+  await screen.getByPlaceholder('My Facebook Group').fill(name);
+  await screen.getByPlaceholder('https://www.facebook.com/groups/123456789').fill(url);
+  await screen.getByRole('button', 'Add Group').tap();
+
+  await expect(screen.getByRole('button', 'Delete')).toHaveCount(before + 1);
+  await expect(screen.getByText(name)).toBeVisible();
+
+  await browser.onDialog('accept');
+  await screen.getByRole('button', 'Delete').first().tap();
+
+  await expect(screen.getByRole('button', 'Delete')).toHaveCount(before);
+});
+
 // ── Posts page ────────────────────────────────────────────────────────────────
 
 test('posts page shows Create Post button', async ({ app, screen }) => {
@@ -168,6 +190,44 @@ test('schedules - New Schedule modal opens with cron field', async ({ app, scree
   await screen.getByRole('button', 'Cancel').tap();
 });
 
+test('schedules - can create and delete a schedule', async ({ app, screen, browser }) => {
+  const acc = await db.account.findFirst();
+  let group = await db.group.findFirst({ where: { isActive: true } });
+  if (!group) {
+    group = await db.group.create({
+      data: { name: 'Sched Fixture Group', url: 'https://facebook.com/groups/schedfix', fbGroupId: `fix_${Date.now()}` },
+    });
+  }
+  let post = await db.post.findFirst({ where: { isActive: true } });
+  if (!post) {
+    post = await db.post.create({
+      data: { title: 'Sched Fixture Post', content: 'Fixture content' },
+    });
+  }
+
+  const schedName = `E2E Sched ${Date.now()}`;
+  await app.open('/schedules');
+  const before = await screen.getByRole('button', 'Delete').count();
+
+  await screen.getByRole('button', 'New Schedule', { exact: false }).tap();
+  await screen.getByPlaceholder('Morning Promo').fill(schedName);
+
+  const selects = screen.getByRole('combobox');
+  await selects.first().selectOption(acc?.name ?? '');
+  await selects.last().selectOption(post.title);
+  await screen.getByRole('checkbox').first().tap();
+
+  await screen.getByRole('button', 'Create Schedule').tap();
+
+  await expect(screen.getByRole('button', 'Delete')).toHaveCount(before + 1);
+  await expect(screen.getByText(schedName)).toBeVisible();
+
+  await browser.onDialog('accept');
+  await screen.getByRole('button', 'Delete').first().tap();
+
+  await expect(screen.getByRole('button', 'Delete')).toHaveCount(before);
+});
+
 // ── Logs page ─────────────────────────────────────────────────────────────────
 
 test('logs page shows filter and refresh controls', async ({ app, screen }) => {
@@ -210,4 +270,54 @@ test('session - Start Session Setup requires name', async ({ app, screen }) => {
   await app.open('/session');
   await screen.getByRole('button', 'Start Session Setup').tap();
   await expect(screen.getByText('Enter a name')).toBeVisible();
+});
+
+test('session - can remove a saved account', async ({ app, screen, browser }) => {
+  const dummyName = `E2E Acc ${Date.now()}`;
+  await db.account.create({
+    data: { name: dummyName, sessionPath: `sessions/e2e_${Date.now()}.json` },
+  });
+
+  await app.open('/session');
+  await expect(screen.getByText(dummyName)).toBeVisible();
+
+  await browser.onDialog('accept');
+  const row = screen.getByRole('row', { name: new RegExp(dummyName) });
+  await row.getByRole('button', 'Remove').tap();
+
+  await expect(screen.getByText(dummyName)).toBeHidden();
+});
+
+test('session - shows error when deleting an account in an active schedule', async ({ app, screen, browser }) => {
+  const dummyName = `E2E Active Acc ${Date.now()}`;
+  const acc = await db.account.create({
+    data: { name: dummyName, sessionPath: `sessions/active_${Date.now()}.json` },
+  });
+  const post = await db.post.create({
+    data: { title: `P ${Date.now()}`, content: 'C' },
+  });
+  const sched = await db.schedule.create({
+    data: {
+      name: `S ${Date.now()}`,
+      cronExpression: '0 9 * * *',
+      accountId: acc.id,
+      postId: post.id,
+      isActive: true,
+      status: 'IDLE',
+    },
+  });
+
+  await app.open('/session');
+  await expect(screen.getByText(dummyName)).toBeVisible();
+
+  await browser.onDialog('accept');
+  const row = screen.getByRole('row', { name: new RegExp(dummyName) });
+  await row.getByRole('button', 'Remove').tap();
+
+  await expect(screen.getByText('Account is assigned to an active schedule')).toBeVisible();
+
+  // Cleanup
+  await db.schedule.delete({ where: { id: sched.id } });
+  await db.post.delete({ where: { id: post.id } });
+  await db.account.delete({ where: { id: acc.id } });
 });

@@ -77,6 +77,13 @@ export async function confirmSession(req: Request, res: Response, next: NextFunc
 export async function deleteAccount(req: Request, res: Response, next: NextFunction) {
   try {
     const { id } = req.params as { id: string };
+    const inActiveSchedule = await db.schedule.findFirst({
+      where: { accountId: id, OR: [{ isActive: true }, { status: 'RUNNING' }] },
+    });
+    if (inActiveSchedule) {
+      res.status(409).json({ success: false, error: 'Account is assigned to an active schedule', code: 'SCHEDULE_RUNNING' });
+      return;
+    }
     const account = await db.account.findUnique({ where: { id } });
     if (!account) {
       res.status(404).json({ success: false, error: 'Account not found', code: 'NOT_FOUND' });
@@ -85,6 +92,13 @@ export async function deleteAccount(req: Request, res: Response, next: NextFunct
     // delete session file
     const abs = path.resolve(config.sessionsDir, '..', account.sessionPath);
     await fs.rm(abs, { force: true });
+    // cleanup inactive schedules and groups
+    const schedules = await db.schedule.findMany({ where: { accountId: id }, select: { id: true } });
+    const scheduleIds = schedules.map((s) => s.id);
+    if (scheduleIds.length > 0) {
+      await db.scheduleGroup.deleteMany({ where: { scheduleId: { in: scheduleIds } } });
+      await db.schedule.deleteMany({ where: { id: { in: scheduleIds } } });
+    }
     await db.account.delete({ where: { id } });
     res.json({ success: true, data: { id } });
   } catch (err) {

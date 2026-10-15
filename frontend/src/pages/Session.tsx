@@ -16,6 +16,7 @@ export default function Session() {
   const [step, setStep] = useState<'idle' | 'waiting' | 'done'>('idle');
   const [name, setName] = useState('');
   const [err, setErr] = useState('');
+  const [deleteErr, setDeleteErr] = useState('');
   const [busy, setBusy] = useState(false);
 
   async function startSession() {
@@ -52,11 +53,14 @@ export default function Session() {
 
   async function handleDelete(id: string) {
     if (!confirm('Remove this account and its session?')) return;
+    setDeleteErr('');
     try {
       await accountsService.delete(id);
       await refetch();
     } catch (e) {
-      alert(e instanceof Error ? e.message : 'Failed');
+      const msg = e instanceof Error ? e.message : 'Failed to delete account';
+      setDeleteErr(msg);
+      alert(msg);
     }
   }
 
@@ -183,6 +187,13 @@ export default function Session() {
             Active sessions authenticated on this instance.
           </p>
         </div>
+
+        {deleteErr && (
+          <div className="flex items-center gap-2 p-3 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-700 font-medium">
+            <WarningCircle size={16} />
+            {deleteErr}
+          </div>
+        )}
 
         <div className="bg-white rounded-2xl border border-zinc-200/80 overflow-hidden shadow-xs">
           <table className="w-full text-sm">

@@ -59,10 +59,10 @@ model Schedule {
   updatedAt      DateTime       @updatedAt
 
   accountId String
-  account   Account @relation(fields: [accountId], references: [id])
+  account   Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
 
   postId String
-  post   Post   @relation(fields: [postId], references: [id])
+  post   Post   @relation(fields: [postId], references: [id], onDelete: Cascade)
 
   scheduleGroups ScheduleGroup[]
   postLogs       PostLog[]
