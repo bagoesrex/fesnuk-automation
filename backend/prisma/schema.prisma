@@ -91,17 +91,17 @@ model PostLog {
   error    String?
   postedAt DateTime  @default(now())
 
-  scheduleId String
-  schedule   Schedule @relation(fields: [scheduleId], references: [id])
+  scheduleId String?
+  schedule   Schedule? @relation(fields: [scheduleId], references: [id], onDelete: SetNull)
 
-  groupId String
-  group   Group  @relation(fields: [groupId], references: [id])
+  groupId String?
+  group   Group?  @relation(fields: [groupId], references: [id], onDelete: SetNull)
 
-  postId String
-  post   Post   @relation(fields: [postId], references: [id])
+  postId String?
+  post   Post?   @relation(fields: [postId], references: [id], onDelete: SetNull)
 
-  accountId String
-  account   Account @relation(fields: [accountId], references: [id])
+  accountId String?
+  account   Account? @relation(fields: [accountId], references: [id], onDelete: SetNull)
 }
 
 

@@ -46,9 +46,11 @@ export async function updatePost(req: Request, res: Response, next: NextFunction
 export async function deletePost(req: Request, res: Response, next: NextFunction) {
   try {
     const { id } = req.params as { id: string };
-    const running = await db.schedule.findFirst({ where: { postId: id, status: 'RUNNING' } });
-    if (running) {
-      res.status(409).json({ success: false, error: 'Post is in a running schedule', code: 'SCHEDULE_RUNNING' });
+    const inActiveSchedule = await db.schedule.findFirst({
+      where: { postId: id, OR: [{ isActive: true }, { status: 'RUNNING' }] },
+    });
+    if (inActiveSchedule) {
+      res.status(409).json({ success: false, error: 'Post is assigned to an active schedule', code: 'SCHEDULE_RUNNING' });
       return;
     }
     const post = await db.post.findUnique({ where: { id } });

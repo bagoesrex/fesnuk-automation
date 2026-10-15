@@ -151,6 +151,8 @@ export async function deleteSchedule(req: Request, res: Response, next: NextFunc
       return;
     }
     unregisterSchedule(id);
+    // Delete child records first (PostLog FKs are SetNull in schema, ScheduleGroup cascades automatically)
+    await db.scheduleGroup.deleteMany({ where: { scheduleId: id } });
     await db.schedule.delete({ where: { id } });
     res.json({ success: true, data: { id } });
   } catch (err) {

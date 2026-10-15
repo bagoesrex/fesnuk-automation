@@ -49,12 +49,12 @@ export async function updateGroup(req: Request, res: Response, next: NextFunctio
 export async function deleteGroup(req: Request, res: Response, next: NextFunction) {
   try {
     const { id } = req.params as { id: string };
-    // block if group is in an active running schedule
-    const running = await db.scheduleGroup.findFirst({
-      where: { groupId: id, schedule: { status: 'RUNNING' } },
+    // Block deletion if group is in any active schedule (isActive=true) or currently running
+    const inActiveSchedule = await db.scheduleGroup.findFirst({
+      where: { groupId: id, schedule: { OR: [{ isActive: true }, { status: 'RUNNING' }] } },
     });
-    if (running) {
-      res.status(409).json({ success: false, error: 'Group is in a running schedule', code: 'SCHEDULE_RUNNING' });
+    if (inActiveSchedule) {
+      res.status(409).json({ success: false, error: 'Group is assigned to an active schedule', code: 'SCHEDULE_RUNNING' });
       return;
     }
     await db.group.delete({ where: { id } });
