@@ -1,6 +1,7 @@
 import path from 'path';
 
-const root = path.resolve(import.meta.dir, '..', '..');
+const baseDir = (typeof import.meta !== 'undefined' && (import.meta.dir ?? import.meta.dirname)) || path.resolve(process.cwd(), 'backend', 'src', 'config');
+const root = path.resolve(baseDir, '..', '..');
 
 export const config = {
   port: Number(process.env['PORT'] ?? 3001),

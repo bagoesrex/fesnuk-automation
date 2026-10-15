@@ -3,6 +3,7 @@ import express from 'express';
 import cors from 'cors';
 import path from 'path';
 import { config } from './config/env.ts';
+import db, { ensureDatabase } from './config/db.ts';
 import { errorHandler, notFound } from './middlewares/errorHandler.ts';
 import { initScheduler } from './services/scheduler.ts';
 import logger from './utils/logger.ts';
@@ -32,7 +33,15 @@ app.use('/api/v1/logs', logsRouter);
 app.use(notFound);
 app.use(errorHandler);
 
-app.listen(config.port, async () => {
-  logger.info(`Backend running on http://localhost:${config.port}`);
+async function startServer(): Promise<void> {
+  await ensureDatabase();
   await initScheduler();
+  app.listen(config.port, () => {
+    logger.info(`Backend running on http://localhost:${config.port}`);
+  });
+}
+
+startServer().catch((err: unknown) => {
+  logger.error(`Failed to start server: ${String(err)}`);
+  process.exit(1);
 });

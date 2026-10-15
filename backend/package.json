@@ -4,8 +4,8 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "dev": "bun run --hot src/index.ts",
-    "start": "bun run src/index.ts"
+    "dev": "bunx prisma migrate deploy && bun run --hot src/index.ts",
+    "start": "bunx prisma migrate deploy && bun run src/index.ts"
   },
   "devDependencies": {
     "@types/bun": "latest",

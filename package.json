@@ -4,6 +4,9 @@
   "type": "module",
   "private": true,
   "scripts": {
+    "dev": "bun run --cwd backend dev",
+    "dev:backend": "bun run --cwd backend dev",
+    "dev:frontend": "bun run --cwd frontend dev",
     "test:e2e": "e2e run",
     "test:e2e:ui": "e2e run tests/ui.e2e.ts",
     "test:e2e:api": "e2e run tests/api.e2e.ts"
