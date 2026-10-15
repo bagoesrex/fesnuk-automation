@@ -3,6 +3,11 @@
   "module": "index.ts",
   "type": "module",
   "private": true,
+  "scripts": {
+    "test:e2e": "e2e run",
+    "test:e2e:ui": "e2e run tests/ui.e2e.ts",
+    "test:e2e:api": "e2e run tests/api.e2e.ts"
+  },
   "devDependencies": {
     "@e2e-dev/web": "^0.14.0",
     "@types/bun": "latest",

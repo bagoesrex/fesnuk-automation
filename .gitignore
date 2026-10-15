@@ -37,4 +37,5 @@ report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 .e2e/results/
 .e2e/sessions/
 .e2e/logs/
+.e2e/report.json
 # keep .e2e/cache/ for replay (do not ignore)
