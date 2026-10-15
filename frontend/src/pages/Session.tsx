@@ -2,6 +2,14 @@ import { useState } from 'react';
 import { useAsync } from '../hooks/useAsync.ts';
 import { accountsService } from '../services/accounts.ts';
 import { Badge } from '../components/Badge.tsx';
+import {
+  Key,
+  Browser,
+  CheckCircle,
+  WarningCircle,
+  Trash,
+  Plus,
+} from '@phosphor-icons/react';
 
 export default function Session() {
   const { data: accounts, loading, refetch } = useAsync(() => accountsService.list(), []);
@@ -11,8 +19,12 @@ export default function Session() {
   const [busy, setBusy] = useState(false);
 
   async function startSession() {
-    if (!name.trim()) { setErr('Enter a name'); return; }
-    setBusy(true); setErr('');
+    if (!name.trim()) {
+      setErr('Enter a name');
+      return;
+    }
+    setBusy(true);
+    setErr('');
     try {
       await accountsService.startSession(name.trim());
       setStep('waiting');
@@ -24,7 +36,8 @@ export default function Session() {
   }
 
   async function confirmSession() {
-    setBusy(true); setErr('');
+    setBusy(true);
+    setErr('');
     try {
       await accountsService.confirmSession();
       setStep('done');
@@ -42,28 +55,62 @@ export default function Session() {
     try {
       await accountsService.delete(id);
       await refetch();
-    } catch (e) { alert(e instanceof Error ? e.message : 'Failed'); }
+    } catch (e) {
+      alert(e instanceof Error ? e.message : 'Failed');
+    }
   }
 
   return (
-    <div className="p-8">
-      <h1 className="text-2xl font-bold text-gray-900 mb-6">Session Setup</h1>
+    <div className="p-8 max-w-7xl mx-auto space-y-8">
+      {/* Header */}
+      <div className="pb-6 border-b border-zinc-200/80">
+        <h1 className="text-2xl font-extrabold text-zinc-950 tracking-tight">Session Setup</h1>
+        <p className="text-sm text-zinc-500 mt-1">
+          Authenticate and store encrypted Facebook browser sessions for headless posting.
+        </p>
+      </div>
 
-      <div className="bg-white rounded-xl border border-gray-200 p-6 mb-6 max-w-md">
+      {/* Session Initializer Card */}
+      <div className="bg-white rounded-2xl border border-zinc-200/80 p-6 max-w-xl shadow-xs">
         {step === 'idle' && (
           <div className="space-y-4">
-            <p className="text-sm text-gray-600">
-              Open a browser window to log into Facebook manually. The session will be saved automatically.
-            </p>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Account Name</label>
-              <input value={name} onChange={(e) => setName(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Main Account" />
+            <div className="flex items-start gap-3 p-3.5 rounded-xl bg-blue-50/70 border border-blue-100">
+              <Browser size={20} className="text-blue-600 mt-0.5 shrink-0" />
+              <p className="text-xs text-blue-900 leading-relaxed">
+                Clicking the button below will launch a clean Playwright browser window. Log into Facebook manually, then return here to confirm.
+              </p>
             </div>
-            {err && <p className="text-red-500 text-sm">{err}</p>}
-            <button onClick={() => { void startSession(); }} disabled={busy}
-              className="w-full py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50">
+
+            <div>
+              <label className="block text-xs font-semibold text-zinc-700 mb-1.5 uppercase tracking-wider">
+                Account Name
+              </label>
+              <input
+                value={name}
+                onChange={(e) => {
+                  setName(e.target.value);
+                  if (err) setErr('');
+                }}
+                className="input"
+                placeholder="Main Account"
+              />
+            </div>
+
+            {err && (
+              <div className="flex items-center gap-2 p-3 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-700 font-medium">
+                <WarningCircle size={16} />
+                {err}
+              </div>
+            )}
+
+            <button
+              onClick={() => {
+                void startSession();
+              }}
+              disabled={busy}
+              className="w-full inline-flex items-center justify-center gap-2 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-semibold hover:bg-blue-700 disabled:opacity-50 shadow-xs transition-colors"
+            >
+              <Key size={16} weight="bold" />
               {busy ? 'Opening Browser...' : 'Start Session Setup'}
             </button>
           </div>
@@ -71,61 +118,130 @@ export default function Session() {
 
         {step === 'waiting' && (
           <div className="space-y-4">
-            <div className="flex items-center gap-3 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-              <div className="w-2 h-2 rounded-full bg-yellow-400 animate-pulse" />
-              <p className="text-sm text-yellow-800 font-medium">Browser is open — log in to Facebook now</p>
+            <div className="flex items-center gap-3 p-4 bg-amber-50 border border-amber-200/80 rounded-xl">
+              <span className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse shrink-0" />
+              <div>
+                <p className="text-xs font-bold text-amber-900">Browser is open</p>
+                <p className="text-xs text-amber-800 mt-0.5">
+                  Complete manual login in the browser window and reach your Facebook home feed.
+                </p>
+              </div>
             </div>
-            <p className="text-sm text-gray-600">
-              Once you are logged in and on the Facebook home page, click <strong>Confirm Login</strong>.
+
+            <p className="text-xs text-zinc-600 leading-relaxed">
+              Once you are fully logged in and on the Facebook home page, click{' '}
+              <strong className="font-semibold text-zinc-900">Confirm Login</strong> to capture cookies and state.
             </p>
-            {err && <p className="text-red-500 text-sm">{err}</p>}
-            <button onClick={() => { void confirmSession(); }} disabled={busy}
-              className="w-full py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 disabled:opacity-50">
+
+            {err && (
+              <div className="flex items-center gap-2 p-3 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-700">
+                <WarningCircle size={16} />
+                {err}
+              </div>
+            )}
+
+            <button
+              onClick={() => {
+                void confirmSession();
+              }}
+              disabled={busy}
+              className="w-full inline-flex items-center justify-center gap-2 py-2.5 bg-emerald-600 text-white rounded-xl text-sm font-semibold hover:bg-emerald-700 disabled:opacity-50 shadow-xs transition-colors"
+            >
+              <CheckCircle size={16} weight="bold" />
               {busy ? 'Saving Session...' : 'Confirm Login'}
             </button>
           </div>
         )}
 
         {step === 'done' && (
-          <div className="text-center py-4">
-            <p className="text-green-600 font-semibold">Session saved successfully!</p>
-            <button onClick={() => setStep('idle')} className="mt-3 text-sm text-blue-600 hover:underline">
+          <div className="text-center py-6 space-y-3">
+            <div className="w-12 h-12 rounded-full bg-emerald-100 text-emerald-600 mx-auto flex items-center justify-center">
+              <CheckCircle size={28} weight="fill" />
+            </div>
+            <div>
+              <p className="text-base font-bold text-zinc-900">Session saved successfully!</p>
+              <p className="text-xs text-zinc-500 mt-1">
+                Your credentials and storage state are safely stored for automated task execution.
+              </p>
+            </div>
+            <button
+              onClick={() => setStep('idle')}
+              className="inline-flex items-center gap-1.5 px-4 py-2 mt-2 text-xs font-semibold text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-xl transition-colors"
+            >
+              <Plus size={14} weight="bold" />
               Add another account
             </button>
           </div>
         )}
       </div>
 
-      <h2 className="text-lg font-semibold text-gray-900 mb-3">Saved Accounts</h2>
-      {loading ? <p className="text-gray-500">Loading...</p> : (
-        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+      {/* Saved Accounts Table */}
+      <div className="space-y-4">
+        <div>
+          <h2 className="text-lg font-bold text-zinc-950 tracking-tight">Saved Accounts</h2>
+          <p className="text-xs text-zinc-500 mt-0.5">
+            Active sessions authenticated on this instance.
+          </p>
+        </div>
+
+        <div className="bg-white rounded-2xl border border-zinc-200/80 overflow-hidden shadow-xs">
           <table className="w-full text-sm">
-            <thead className="bg-gray-50 text-gray-500 text-xs uppercase tracking-wide">
+            <thead className="bg-zinc-50/75 text-zinc-500 text-[11px] font-semibold uppercase tracking-wider border-b border-zinc-100">
               <tr>
-                <th className="px-4 py-3 text-left">Name</th>
-                <th className="px-4 py-3 text-left">Status</th>
-                <th className="px-4 py-3 text-left">Added</th>
-                <th className="px-4 py-3 text-right">Actions</th>
+                <th className="px-5 py-3.5 text-left">Name</th>
+                <th className="px-5 py-3.5 text-left">Status</th>
+                <th className="px-5 py-3.5 text-left">Added</th>
+                <th className="px-5 py-3.5 text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
-              {accounts?.map((a) => (
-                <tr key={a.id} className="hover:bg-gray-50">
-                  <td className="px-4 py-3 font-medium text-gray-900">{a.name}</td>
-                  <td className="px-4 py-3"><Badge label={a.isActive ? 'Active' : 'Inactive'} variant={a.isActive ? 'green' : 'gray'} /></td>
-                  <td className="px-4 py-3 text-gray-500">{new Date(a.createdAt).toLocaleDateString()}</td>
-                  <td className="px-4 py-3 text-right">
-                    <button onClick={() => handleDelete(a.id)} className="text-xs text-red-500 hover:underline">Remove</button>
+            <tbody className="divide-y divide-zinc-100">
+              {loading ? (
+                <tr>
+                  <td colSpan={4} className="px-5 py-8 text-center text-zinc-400">
+                    <div className="inline-flex items-center gap-2 text-sm text-zinc-500">
+                      <span className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+                      Loading accounts...
+                    </div>
+                  </td>
+                </tr>
+              ) : accounts?.map((a) => (
+                <tr key={a.id} className="hover:bg-zinc-50/60 transition-colors">
+                  <td className="px-5 py-3.5 font-bold text-zinc-900">{a.name}</td>
+                  <td className="px-5 py-3.5">
+                    <Badge
+                      label={a.isActive ? 'Active' : 'Inactive'}
+                      variant={a.isActive ? 'green' : 'gray'}
+                      pulse={a.isActive}
+                    />
+                  </td>
+                  <td className="px-5 py-3.5 text-xs text-zinc-500 font-mono">
+                    {new Date(a.createdAt).toLocaleDateString()}
+                  </td>
+                  <td className="px-5 py-3.5 text-right">
+                    <button
+                      onClick={() => handleDelete(a.id)}
+                      className="px-2.5 py-1 text-xs font-semibold rounded-lg text-rose-600 hover:text-rose-700 hover:bg-rose-50 transition-colors inline-flex items-center gap-1"
+                    >
+                      <Trash size={12} />
+                      Remove
+                    </button>
                   </td>
                 </tr>
               ))}
-              {!accounts?.length && (
-                <tr><td colSpan={4} className="px-4 py-8 text-center text-gray-400">No accounts yet</td></tr>
+              {!loading && !accounts?.length && (
+                <tr>
+                  <td colSpan={4} className="px-5 py-12 text-center text-zinc-400">
+                    <p className="text-sm font-medium">No accounts yet</p>
+                    <p className="text-xs text-zinc-500 mt-1">
+                      Configure your first Facebook account session above.
+                    </p>
+                  </td>
+                </tr>
               )}
             </tbody>
           </table>
         </div>
-      )}
+      </div>
     </div>
   );
 }
