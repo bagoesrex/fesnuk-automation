@@ -42,6 +42,9 @@ export async function syncGroupsFromFacebook(
     for (const g of scraped) {
       const existing = await db.group.findUnique({ where: { fbGroupId: g.fbGroupId } });
       if (existing) {
+        if (existing.name !== g.name) {
+          await db.group.update({ where: { id: existing.id }, data: { name: g.name } });
+        }
         skipped++;
       } else {
         await db.group.create({ data: g });
@@ -95,6 +98,14 @@ async function extractGroupLinks(page: import('playwright').Page): Promise<Scrap
   return page.evaluate((): Array<{ fbGroupId: string; name: string; url: string }> => {
     const results: Array<{ fbGroupId: string; name: string; url: string }> = [];
     const anchors = Array.from(document.querySelectorAll('a[href*="/groups/"]'));
+    const seen = new Set<string>();
+
+    const IGNORED_NAMES = [
+      'lihat grup', 'view group',
+      'gabung ke grup', 'join group',
+      'kunjungi grup', 'visit group',
+      'bagikan', 'share',
+    ];
 
     for (const el of anchors) {
       const href = (el as HTMLAnchorElement).href;
@@ -109,15 +120,30 @@ async function extractGroupLinks(page: import('playwright').Page): Promise<Scrap
       // (real group IDs can be numeric, so we keep them — just filter sub-pages)
       if (href.match(/\/groups\/[^/]+\/(permalink|posts|media|members|events|files|about|announcements)/)) continue;
 
-      // Prefer the closest meaningful text node (group name is usually the direct text)
-      const text = (el.textContent ?? '').trim().replace(/\s+/g, ' ');
-      if (!text || text.length > 120) continue; // skip empty or nav-wrapper links
+      // Extract group name:
+      // In Facebook's joined groups card, the title is inside the first span[dir="auto"]
+      // followed by secondary metadata spans like "Terakhir aktif ...", "Publik · ...", etc.
+      const dirAutoSpan = el.querySelector('span[dir="auto"]');
+      let text = (dirAutoSpan?.textContent ?? el.textContent ?? '').trim();
 
-      results.push({
-        fbGroupId,
-        name: text,
-        url: `https://www.facebook.com/groups/${fbGroupId}`,
-      });
+      // Clean up any trailing activity, time, or membership metadata (multi-language defense)
+      text = text
+        .replace(/(?:Terakhir aktif|Last active|Aktif sekitar|Active about)[\s\S]*$/i, '')
+        .replace(/(?:·|\u00b7)[\s\S]*$/, '')
+        .trim()
+        .replace(/\s+/g, ' ');
+
+      if (!text || text.length > 120) continue; // skip empty or nav-wrapper links
+      if (IGNORED_NAMES.includes(text.toLowerCase())) continue;
+
+      if (!seen.has(fbGroupId)) {
+        seen.add(fbGroupId);
+        results.push({
+          fbGroupId,
+          name: text,
+          url: `https://www.facebook.com/groups/${fbGroupId}`,
+        });
+      }
     }
 
     return results;
