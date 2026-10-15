@@ -22,7 +22,9 @@ export async function createPost(req: Request, res: Response, next: NextFunction
       return;
     }
     const files = (req.files as Express.Multer.File[] | undefined) ?? [];
-    const imagePaths = files.map((f) => path.relative(path.resolve(config.uploadsDir, '..'), f.path));
+    const imagePaths = files.map((f) =>
+      path.relative(path.resolve(config.uploadsDir, '..'), f.path).replace(/\\/g, '/')
+    );
     const post = await db.post.create({
       data: { title: title.trim(), content: content.trim(), imagePaths: JSON.stringify(imagePaths) },
     });

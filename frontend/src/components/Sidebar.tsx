@@ -21,7 +21,7 @@ const links = [
 
 export function Sidebar() {
   return (
-    <aside className="w-64 shrink-0 bg-white border-r border-zinc-200/80 min-h-screen flex flex-col justify-between select-none">
+    <aside className="w-64 shrink-0 bg-white border-r border-zinc-200/80 h-screen sticky top-0 flex flex-col justify-between select-none overflow-y-auto">
       <div>
         {/* Brand Header */}
         <div className="px-6 py-5 border-b border-zinc-100 flex items-center justify-between">

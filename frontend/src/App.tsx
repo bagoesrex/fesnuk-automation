@@ -10,9 +10,9 @@ import Session from './pages/Session.tsx';
 export default function App() {
   return (
     <BrowserRouter>
-      <div className="flex min-h-screen bg-gray-50">
+      <div className="flex h-screen overflow-hidden bg-zinc-50">
         <Sidebar />
-        <main className="flex-1 overflow-auto">
+        <main className="flex-1 h-screen overflow-y-auto">
           <Routes>
             <Route path="/" element={<Dashboard />} />
             <Route path="/groups" element={<Groups />} />
