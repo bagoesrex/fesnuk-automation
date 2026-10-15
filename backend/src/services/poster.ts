@@ -26,7 +26,7 @@ export async function runPosting(schedule: ScheduleWithRelations): Promise<void>
         continue;
       }
 
-      const ctx = await browser.newContext();
+      const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
       try {
         // load saved session
         const sessionOk = await loadSession(ctx, schedule.account.sessionPath);
@@ -70,25 +70,30 @@ async function postToGroup(
   try {
     await page.goto(groupUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
 
-    // human-like: random scroll then pause
+    // human-like: random scroll then pause — also helps Facebook render feed elements
     await page.evaluate(() => window.scrollBy(0, 200 + Math.random() * 400));
-    await delay(randomInt(800, 1800));
+    await delay(randomInt(1500, 2500));
 
     // ── Step 1: Click "Tulis sesuatu..." / "Write something..." trigger ────────
-    // Facebook renders an inline button (role=button, text="Tulis sesuatu...") that opens the composer modal.
-    // DOM confirmed via inspection: [role="button"] with text "Tulis sesuatu..."
     const composerTrigger = page.locator('[role="button"]', { hasText: /tulis sesuatu|write something|buat postingan publik/i }).first();
     await composerTrigger.waitFor({ timeout: 15000 });
+    await composerTrigger.scrollIntoViewIfNeeded();
+    await delay(500);
     await composerTrigger.click();
-    await delay(randomInt(800, 1500));
+    await delay(randomInt(1200, 2000));
 
-    // ── Step 2: Wait for the composer dialog to open ──────────────────────────
-    // Confirmed: [role="dialog"][aria-label="Buat postingan"] appears after click
-    const dialog = page.locator('[role="dialog"]').filter({ hasText: /buat postingan|create post/i }).first();
-    await dialog.waitFor({ timeout: 10000 });
+    // ── Step 2: Wait for composer dialog to open ──────────────────────────────
+    // Index 0 has the actual composer content (no aria-label).
+    const dialog = page.locator('[role="dialog"]').first();
+    try {
+      await dialog.waitFor({ timeout: 8000 });
+    } catch {
+      // Retry click once if dialog didn't open immediately
+      await composerTrigger.click();
+      await dialog.waitFor({ timeout: 15000 });
+    }
 
-    // ── Step 3: Click and type into the composer textbox inside the dialog ────
-    // Confirmed: [role="textbox"][aria-label="Buat postingan publik..."] inside dialog
+    // ── Step 3: Click and type into composer textbox inside dialog ────────────
     const textbox = dialog.locator('[role="textbox"]').first();
     await textbox.waitFor({ timeout: 10000 });
     await textbox.click();
@@ -99,7 +104,17 @@ async function postToGroup(
     for (const char of post.content) {
       await page.keyboard.type(char, { delay: randomInt(30, 100) });
     }
-    await delay(randomInt(400, 800));
+
+    // Dismiss any auto-suggestion / mention dropdown that may have appeared
+    // (e.g. Facebook shows mention suggestions when typing names like "Guys", "@someone", etc.)
+    // Strategy: click the dialog heading "Buat postingan" — dismisses dropdown WITHOUT closing dialog.
+    // Do NOT use Escape — that closes the entire dialog.
+    const dialogHeading = dialog.locator('text=Buat postingan').first();
+    const headingExists = await dialogHeading.count();
+    if (headingExists > 0) {
+      await dialogHeading.click({ force: true });
+    }
+    await delay(randomInt(400, 700));
 
     // ── Step 4: Attach images if any ─────────────────────────────────────────
     // Confirmed: [aria-label="Foto/video"] button opens file picker inside the dialog
@@ -140,6 +155,9 @@ async function postToGroup(
     // Confirmed: [aria-label="Posting"] inside the dialog
     const postBtn = dialog.locator('[aria-label="Posting"], [aria-label="Post"]').first();
     await postBtn.waitFor({ timeout: 5000 });
+    // Scroll button into view in case dialog overflow hides it
+    await postBtn.scrollIntoViewIfNeeded();
+    await delay(randomInt(200, 400));
     await postBtn.click();
 
     // Wait for dialog to close (post submitted successfully)
