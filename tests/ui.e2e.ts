@@ -187,6 +187,28 @@ test('schedules - New Schedule modal opens with cron field', async ({ app, scree
   await expect(screen.getByText('New Schedule')).toBeVisible();
   await expect(screen.getByPlaceholder('Morning Promo')).toBeVisible();
   await expect(screen.getByPlaceholder('0 9 * * 1-5')).toBeVisible();
+  await expect(screen.getByRole('button', 'Select All (Random)')).toBeVisible();
+  await screen.getByRole('button', 'Cancel').tap();
+});
+
+test('schedules - can select all groups randomly and clear selection', async ({ app, screen }) => {
+  const gCount = await db.group.count({ where: { isActive: true } });
+  if (gCount === 0) {
+    await db.group.create({
+      data: { name: 'Random Test Group', url: 'https://facebook.com/groups/randfix', fbGroupId: `rand_${Date.now()}` },
+    });
+  }
+
+  await app.open('/schedules');
+  await screen.getByRole('button', 'New Schedule', { exact: false }).tap();
+  await screen.getByRole('button', 'Select All (Random)').tap();
+
+  // Badge indicators for order (#1, #2, etc.) should appear
+  await expect(screen.getByText('#1')).toBeVisible();
+
+  // Clear button should now be visible and functional
+  await screen.getByRole('button', 'Clear').tap();
+  await expect(screen.getByRole('button', 'Clear')).toHaveCount(0);
   await screen.getByRole('button', 'Cancel').tap();
 });
 

@@ -12,6 +12,7 @@ import {
   Play,
   Trash,
   WarningCircle,
+  Shuffle,
 } from '@phosphor-icons/react';
 
 const statusVariant: Record<string, 'green' | 'red' | 'yellow' | 'gray' | 'blue'> = {
@@ -45,6 +46,22 @@ export default function Schedules() {
       ...f,
       groupIds: f.groupIds.includes(id) ? f.groupIds.filter((g) => g !== id) : [...f.groupIds, id],
     }));
+  }
+
+  function selectAllRandom() {
+    const activeIds = (groups?.filter((g) => g.isActive) || []).map((g) => g.id);
+    const shuffled = [...activeIds];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      const temp = shuffled[i]!;
+      shuffled[i] = shuffled[j]!;
+      shuffled[j] = temp;
+    }
+    setForm((f) => ({ ...f, groupIds: shuffled }));
+  }
+
+  function deselectAll() {
+    setForm((f) => ({ ...f, groupIds: [] }));
   }
 
   async function handleCreate(e: React.FormEvent) {
@@ -259,7 +276,32 @@ export default function Schedules() {
               </Field>
             </div>
 
-            <Field label="Target Groups (click to toggle, order preserved)">
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-xs font-semibold text-zinc-700 uppercase tracking-wider">
+                  Target Groups (order preserved)
+                </label>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={selectAllRandom}
+                    className="inline-flex items-center gap-1 text-[11px] font-semibold text-blue-600 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 px-2 py-0.5 rounded-md border border-blue-200 transition-colors"
+                    title="Select all active groups in random order"
+                  >
+                    <Shuffle size={13} weight="bold" />
+                    Select All (Random)
+                  </button>
+                  {form.groupIds.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={deselectAll}
+                      className="text-[11px] font-medium text-zinc-500 hover:text-zinc-700 hover:bg-zinc-100 px-1.5 py-0.5 rounded transition-colors"
+                    >
+                      Clear
+                    </button>
+                  )}
+                </div>
+              </div>
               <div className="space-y-1.5 max-h-44 overflow-y-auto p-2 rounded-xl bg-zinc-50 border border-zinc-200">
                 {groups?.filter((g) => g.isActive).map((g) => (
                   <label
@@ -286,7 +328,7 @@ export default function Schedules() {
                   <p className="text-xs text-zinc-400 text-center py-2">No active groups available</p>
                 )}
               </div>
-            </Field>
+            </div>
 
             <div className="grid grid-cols-2 gap-4">
               <Field label="Min Delay (sec)">
