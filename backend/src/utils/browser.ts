@@ -122,15 +122,23 @@ export async function createStealthContext(
 }
 
 /** Human-like mouse movement towards locator center before clicking */
-export async function humanClick(page: Page, locator: Locator): Promise<void> {
-  const box = await locator.boundingBox();
-  if (box) {
-    const targetX = box.x + box.width * (0.3 + Math.random() * 0.4);
-    const targetY = box.y + box.height * (0.3 + Math.random() * 0.4);
+export async function humanClick(
+  page: Page,
+  locator: Locator,
+  options?: { force?: boolean }
+): Promise<void> {
+  try {
+    const box = await locator.boundingBox();
+    if (box) {
+      const targetX = box.x + box.width * (0.3 + Math.random() * 0.4);
+      const targetY = box.y + box.height * (0.3 + Math.random() * 0.4);
 
-    // Move in small natural steps
-    await page.mouse.move(targetX, targetY, { steps: randomInt(6, 12) });
-    await delay(randomInt(80, 180));
+      // Move in small natural steps
+      await page.mouse.move(targetX, targetY, { steps: randomInt(6, 12) });
+      await delay(randomInt(80, 180));
+    }
+  } catch {
+    // If boundingBox fails, proceed to click
   }
-  await locator.click();
+  await locator.click({ force: options?.force ?? true });
 }

@@ -5,6 +5,7 @@ import { delay, randomInt } from '../utils/helpers.ts';
 import { config } from '../config/env.ts';
 import logger from '../utils/logger.ts';
 import path from 'path';
+import fs from 'fs';
 import { createStealthBrowser, createStealthContext, humanClick } from '../utils/browser.ts';
 
 type ScheduleWithRelations = Schedule & {
@@ -36,7 +37,7 @@ export async function runPosting(schedule: ScheduleWithRelations): Promise<void>
           continue;
         }
 
-        await postToGroup(ctx, group.url, schedule.post, schedule.account.sessionPath);
+        await postToGroup(ctx, group, schedule.post, schedule.account.sessionPath);
         await writeLog(schedule, group, 'SUCCESS');
         logger.info(`Posted to group ${group.name} (schedule ${schedule.id})`);
       } catch (err) {
@@ -62,24 +63,28 @@ export async function runPosting(schedule: ScheduleWithRelations): Promise<void>
 
 async function postToGroup(
   ctx: import('playwright').BrowserContext,
-  groupUrl: string,
+  group: Group,
   post: Post,
   _sessionPath: string
 ): Promise<void> {
   const page = await ctx.newPage();
   try {
-    await page.goto(groupUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
+    await page.goto(group.url, { waitUntil: 'domcontentloaded', timeout: 30000 });
 
     // human-like: random scroll then pause — also helps Facebook render feed elements
-    await page.evaluate(() => window.scrollBy(0, 200 + Math.random() * 400));
+    await page.evaluate(() => (window as any).scrollBy(0, 200 + Math.random() * 400));
     await delay(randomInt(1500, 2500));
 
     // ── Step 1: Click "Tulis sesuatu..." / "Write something..." trigger ────────
-    const composerTrigger = page.locator('[role="button"]', { hasText: /tulis sesuatu|write something|buat postingan publik/i }).first();
+    const composerTrigger = page
+      .locator('[role="button"]', { hasText: /tulis sesuatu|write something|buat postingan publik/i })
+      .first();
     await composerTrigger.waitFor({ timeout: 15000 });
     await composerTrigger.scrollIntoViewIfNeeded();
+    // Offset slightly so it's not tucked under Facebook's sticky navbar
+    await page.evaluate(() => (window as any).scrollBy(0, -120));
     await delay(500);
-    await humanClick(page, composerTrigger);
+    await humanClick(page, composerTrigger, { force: true });
     await delay(randomInt(1200, 2000));
 
     // ── Step 2: Wait for composer dialog to open ──────────────────────────────
@@ -89,56 +94,58 @@ async function postToGroup(
       await dialog.waitFor({ timeout: 8000 });
     } catch {
       // Retry click once if dialog didn't open immediately
-      await humanClick(page, composerTrigger);
+      await page.evaluate(() => (window as any).scrollBy(0, -120));
+      await composerTrigger.click({ force: true });
       await dialog.waitFor({ timeout: 15000 });
     }
 
     // ── Step 3: Click and type into composer textbox inside dialog ────────────
     const textbox = dialog.locator('[role="textbox"]').first();
     await textbox.waitFor({ timeout: 10000 });
-    await textbox.click();
+    await textbox.click({ force: true });
+    await textbox.focus().catch(() => {});
     await delay(randomInt(300, 600));
 
     // Type content character by character for human-like pacing
     const imagePaths = JSON.parse(post.imagePaths) as string[];
     for (const char of post.content) {
-      await page.keyboard.type(char, { delay: randomInt(30, 100) });
+      await page.keyboard.type(char, { delay: randomInt(30, 80) });
+    }
+
+    // Fallback: verify text registered; if empty, insert directly via InputEvent
+    const currentText = await textbox.innerText().catch(() => '');
+    if (!currentText.trim() && post.content.trim()) {
+      await textbox.focus().catch(() => {});
+      await page.keyboard.insertText(post.content);
     }
 
     // Dismiss any auto-suggestion / mention dropdown that may have appeared
     // (e.g. Facebook shows mention suggestions when typing names like "Guys", "@someone", etc.)
-    // Strategy: click the dialog heading "Buat postingan" — dismisses dropdown WITHOUT closing dialog.
-    // Do NOT use Escape — that closes the entire dialog.
-    const dialogHeading = dialog.locator('text=Buat postingan').first();
+    // Strategy: click the dialog heading — dismisses dropdown WITHOUT closing dialog.
+    const dialogHeading = dialog.locator('text=Buat postingan, text="Create post", text="Create a post"').first();
     const headingExists = await dialogHeading.count();
     if (headingExists > 0) {
-      await dialogHeading.click({ force: true });
+      await dialogHeading.click({ force: true }).catch(() => {});
     }
     await delay(randomInt(400, 700));
 
     // ── Step 4: Attach images if any ─────────────────────────────────────────
-    // Confirmed: [aria-label="Foto/video"] button opens file picker inside the dialog
     if (imagePaths.length > 0) {
       const photoBtn = dialog.locator('[aria-label="Foto/video"], [aria-label="Photo/video"]').first();
       await photoBtn.waitFor({ timeout: 5000 });
-      await photoBtn.click();
+      await photoBtn.click({ force: true });
       await delay(randomInt(600, 1200));
 
-      // Wait for file input to be ready then set files directly (more reliable than filechooser event)
-      // The file input for the composer modal is the one with multiple attribute and image+video accept
       const fileInput = dialog.locator('input[type="file"][multiple]').first();
-      await fileInput.waitFor({ state: 'attached', timeout: 10000 }).catch(() => {
-        // fallback: use any file input
-      });
+      await fileInput.waitFor({ state: 'attached', timeout: 10000 }).catch(() => {});
 
       const absPaths = imagePaths.map((rel) => path.resolve(config.uploadsDir, '..', rel));
       try {
         await fileInput.setInputFiles(absPaths);
       } catch {
-        // Fallback: trigger via filechooser event on the photo button
         const [fileChooser] = await Promise.all([
           page.waitForEvent('filechooser', { timeout: 8000 }),
-          photoBtn.click(),
+          photoBtn.click({ force: true }),
         ]);
         await fileChooser.setFiles(absPaths);
       }
@@ -147,26 +154,70 @@ async function postToGroup(
       await page.waitForSelector('[role="progressbar"], [aria-label="Memuat..."], [aria-label="Loading..."]', {
         state: 'detached',
         timeout: 60000,
-      }).catch(() => {}); // ok if never appeared
+      }).catch(() => {});
       await delay(randomInt(1500, 2500));
     }
 
     // ── Step 5: Click the "Posting" / "Post" submit button ─────────────────────
-    // Confirmed: [aria-label="Posting"] inside the dialog
     const postBtn = dialog.locator('[aria-label="Posting"], [aria-label="Post"]').first();
-    await postBtn.waitFor({ timeout: 5000 });
-    // Scroll button into view in case dialog overflow hides it
+    await postBtn.waitFor({ timeout: 10000 });
     await postBtn.scrollIntoViewIfNeeded();
-    await delay(randomInt(200, 400));
-    await humanClick(page, postBtn);
+
+    // Wait until Post button is enabled (aria-disabled is false or not present)
+    const enabledPostBtn = dialog
+      .locator('[aria-label="Posting"]:not([aria-disabled="true"]), [aria-label="Post"]:not([aria-disabled="true"])')
+      .first();
+
+    try {
+      await enabledPostBtn.waitFor({ state: 'visible', timeout: 45000 });
+    } catch {
+      const isDisabled = await postBtn.getAttribute('aria-disabled');
+      if (isDisabled === 'true') {
+        throw new Error(
+          'Tombol Posting tetap nonaktif (aria-disabled="true") setelah 45 detik. Kemungkinan upload gambar masih berjalan/gagal, atau grup mewajibkan pemilihan topik/aturan persetujuan.'
+        );
+      }
+    }
+
+    await delay(randomInt(300, 600));
+    await humanClick(page, postBtn, { force: true });
 
     // Wait for dialog to close (post submitted successfully)
-    await dialog.waitFor({ state: 'detached', timeout: 30000 });
+    await dialog.waitFor({ state: 'detached', timeout: 35000 });
     await delay(randomInt(2000, 3000));
 
     logger.info('Post submitted successfully');
+  } catch (err) {
+    const domPath = await captureErrorDom(page, group.name);
+    if (domPath && err instanceof Error) {
+      err.message = `${err.message} (DOM: ${domPath})`;
+    }
+    throw err;
   } finally {
     await page.close();
+  }
+}
+
+async function captureErrorDom(page: import('playwright').Page, groupName: string): Promise<string | null> {
+  try {
+    await fs.promises.mkdir(config.logsDir, { recursive: true });
+    const safeName = groupName.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 30) || 'unknown';
+    const timestamp = Date.now();
+    const filename = `dom-error-${timestamp}-${safeName}.html`;
+    const fullPath = path.join(config.logsDir, filename);
+
+    const html = await page.content();
+    await fs.promises.writeFile(fullPath, html, 'utf-8');
+
+    // Also capture screenshot for quick visual check
+    const screenshotName = `screenshot-error-${timestamp}-${safeName}.png`;
+    await page.screenshot({ path: path.join(config.logsDir, screenshotName) }).catch(() => {});
+
+    logger.info(`Captured error DOM and screenshot for ${groupName} -> ${filename}`);
+    return `logs/${filename}`;
+  } catch (e) {
+    logger.warn(`Failed to capture error DOM for ${groupName}: ${e}`);
+    return null;
   }
 }
 
