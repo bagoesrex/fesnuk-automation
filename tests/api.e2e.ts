@@ -224,3 +224,64 @@ test('unknown route returns 404', async () => {
   expect(body.success).toBe(false);
   expect(body.code).toBe('NOT_FOUND');
 });
+
+// ── Auth & Session Export/Import ──────────────────────────────────────────────
+
+test('GET /auth/status returns auth status', async () => {
+  const res = await api('/auth/status');
+  expect(res.success).toBe(true);
+  const data = res.data as { authRequired: boolean; authenticated: boolean };
+  expect(typeof data.authRequired).toBe('boolean');
+  expect(typeof data.authenticated).toBe('boolean');
+});
+
+test('POST /auth/login returns token', async () => {
+  const res = await api('/auth/login', {
+    method: 'POST',
+    body: JSON.stringify({ password: 'any' }),
+  });
+  expect(res.success).toBe(true);
+  const data = res.data as { token: string };
+  expect(typeof data.token).toBe('string');
+});
+
+test('POST /accounts/session/import validates input and creates account', async () => {
+  // Invalid payload test
+  const invalid = await api('/accounts/session/import', {
+    method: 'POST',
+    body: JSON.stringify({ name: 'Test' }),
+  });
+  expect(invalid.success).toBe(false);
+
+  // Valid session import
+  const validSession = {
+    cookies: [
+      { name: 'c_user', value: '100012345', domain: '.facebook.com', path: '/' },
+      { name: 'xs', value: 'token123', domain: '.facebook.com', path: '/' },
+    ],
+    origins: [],
+  };
+
+  const created = await api('/accounts/session/import', {
+    method: 'POST',
+    body: JSON.stringify({
+      name: 'Imported E2E Account',
+      sessionData: validSession,
+      proxyUrl: 'http://user:pass@127.0.0.1:8080',
+    }),
+  });
+
+  expect(created.success).toBe(true);
+  const acc = created.data as { id: string; name: string; proxyUrl: string };
+  expect(acc.name).toBe('Imported E2E Account');
+  expect(acc.proxyUrl).toBe('http://user:pass@127.0.0.1:8080');
+
+  // Verify export session endpoint
+  const exportRes = await fetch(`${API}/accounts/${acc.id}/session`);
+  expect(exportRes.status).toBe(200);
+  const exportedJson = await exportRes.json() as { cookies: unknown[] };
+  expect(Array.isArray(exportedJson.cookies)).toBe(true);
+
+  // Cleanup
+  await api(`/accounts/${acc.id}`, { method: 'DELETE' });
+});

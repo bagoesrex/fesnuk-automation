@@ -7,8 +7,10 @@ import {
   Scroll,
   Key,
   Broadcast,
+  SignOut,
 } from '@phosphor-icons/react';
 import { BrandLogo } from './BrandLogo.tsx';
+import { useAuth } from './AuthGate.tsx';
 
 const links = [
   { to: '/', label: 'Dashboard', icon: SquaresFour },
@@ -20,6 +22,7 @@ const links = [
 ];
 
 export function Sidebar() {
+  const { authRequired, logout } = useAuth();
   return (
     <aside className="w-64 shrink-0 bg-white border-r border-zinc-200/80 h-screen sticky top-0 flex flex-col justify-between select-none overflow-y-auto">
       <div>
@@ -77,15 +80,27 @@ export function Sidebar() {
         </nav>
       </div>
 
-      {/* Engine Status Footer */}
-      <div className="p-4 m-3 rounded-xl bg-zinc-50 border border-zinc-200/60">
-        <div className="flex items-center gap-2 mb-2">
-          <Broadcast size={15} className="text-zinc-400" />
-          <span className="text-xs font-semibold text-zinc-700">Automation Engine</span>
+      {/* Engine Status Footer & Logout */}
+      <div className="p-3 m-3 space-y-2">
+        <div className="p-3 rounded-xl bg-zinc-50 border border-zinc-200/60">
+          <div className="flex items-center gap-2 mb-1.5">
+            <Broadcast size={15} className="text-zinc-400" />
+            <span className="text-xs font-semibold text-zinc-700">Automation Engine</span>
+          </div>
+          <p className="text-[11px] text-zinc-500 leading-relaxed">
+            Playwright + stealth worker running. Schedules fire via node-cron.
+          </p>
         </div>
-        <p className="text-[11px] text-zinc-500 leading-relaxed">
-          Playwright + stealth worker running. Schedules fire via node-cron.
-        </p>
+
+        {authRequired && (
+          <button
+            onClick={logout}
+            className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-xl text-xs font-medium text-zinc-600 hover:text-red-600 hover:bg-red-50 border border-zinc-200/60 hover:border-red-200 transition"
+          >
+            <SignOut size={14} />
+            <span>Lock Dashboard</span>
+          </button>
+        )}
       </div>
     </aside>
   );

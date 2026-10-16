@@ -10,13 +10,17 @@ import {
   Trash,
   Plus,
   Globe,
+  DownloadSimple,
+  UploadSimple,
 } from '@phosphor-icons/react';
 
 export default function Session() {
   const { data: accounts, loading, refetch } = useAsync(() => accountsService.list(), []);
+  const [mode, setMode] = useState<'browser' | 'import'>('browser');
   const [step, setStep] = useState<'idle' | 'waiting' | 'done'>('idle');
   const [name, setName] = useState('');
   const [proxyUrl, setProxyUrl] = useState('');
+  const [sessionJson, setSessionJson] = useState('');
   const [err, setErr] = useState('');
   const [deleteErr, setDeleteErr] = useState('');
   const [busy, setBusy] = useState(false);
@@ -54,6 +58,55 @@ export default function Session() {
     }
   }
 
+  async function handleImportSession(e: React.FormEvent) {
+    e.preventDefault();
+    if (!name.trim()) {
+      setErr('Enter an account name');
+      return;
+    }
+    if (!sessionJson.trim()) {
+      setErr('Paste or upload your session JSON data');
+      return;
+    }
+
+    setBusy(true);
+    setErr('');
+    try {
+      await accountsService.importSession(name.trim(), sessionJson.trim(), proxyUrl.trim() || undefined);
+      setStep('done');
+      setName('');
+      setProxyUrl('');
+      setSessionJson('');
+      await refetch();
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : 'Failed to import session');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const text = event.target?.result as string;
+      setSessionJson(text);
+      if (!name) {
+        setName(file.name.replace(/\.[^.]+$/, '').replace(/^session-?/, ''));
+      }
+    };
+    reader.readAsText(file);
+  }
+
+  async function handleExport(id: string, accName: string) {
+    try {
+      await accountsService.exportSession(id, accName);
+    } catch (e) {
+      alert(e instanceof Error ? e.message : 'Export failed');
+    }
+  }
+
   async function handleDelete(id: string) {
     if (!confirm('Remove this account and its session?')) return;
     setDeleteErr('');
@@ -73,107 +126,47 @@ export default function Session() {
       <div className="pb-6 border-b border-zinc-200/80">
         <h1 className="text-2xl font-extrabold text-zinc-950 tracking-tight">Session Setup</h1>
         <p className="text-sm text-zinc-500 mt-1">
-          Authenticate and store encrypted Facebook browser sessions for headless posting.
+          Authenticate and store Facebook browser sessions for headless posting.
         </p>
+      </div>
+
+      {/* Mode Switcher */}
+      <div className="flex gap-2 p-1 bg-zinc-200/60 rounded-xl w-fit">
+        <button
+          onClick={() => {
+            setMode('browser');
+            setStep('idle');
+            setErr('');
+          }}
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition ${
+            mode === 'browser'
+              ? 'bg-white text-zinc-900 shadow-xs'
+              : 'text-zinc-600 hover:text-zinc-900'
+          }`}
+        >
+          <Browser size={16} />
+          Browser Login (Local)
+        </button>
+        <button
+          onClick={() => {
+            setMode('import');
+            setStep('idle');
+            setErr('');
+          }}
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition ${
+            mode === 'import'
+              ? 'bg-white text-zinc-900 shadow-xs'
+              : 'text-zinc-600 hover:text-zinc-900'
+          }`}
+        >
+          <UploadSimple size={16} />
+          Import Session JSON (VPS)
+        </button>
       </div>
 
       {/* Session Initializer Card */}
       <div className="bg-white rounded-2xl border border-zinc-200/80 p-6 max-w-xl shadow-xs">
-        {step === 'idle' && (
-          <div className="space-y-4">
-            <div className="flex items-start gap-3 p-3.5 rounded-xl bg-blue-50/70 border border-blue-100">
-              <Browser size={20} className="text-blue-600 mt-0.5 shrink-0" />
-              <p className="text-xs text-blue-900 leading-relaxed">
-                Clicking the button below will launch a clean Playwright browser window. Log into Facebook manually, then return here to confirm.
-              </p>
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-zinc-700 mb-1.5 uppercase tracking-wider">
-                Account Name
-              </label>
-              <input
-                value={name}
-                onChange={(e) => {
-                  setName(e.target.value);
-                  if (err) setErr('');
-                }}
-                className="input"
-                placeholder="Main Account"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-zinc-700 mb-1.5 uppercase tracking-wider flex items-center justify-between">
-                <span>Proxy URL (Optional)</span>
-                <span className="text-[10px] text-zinc-400 font-normal lowercase">recommended for VPS</span>
-              </label>
-              <input
-                value={proxyUrl}
-                onChange={(e) => setProxyUrl(e.target.value)}
-                className="input font-mono text-xs"
-                placeholder="http://user:pass@host:port or host:port:user:pass"
-              />
-            </div>
-
-            {err && (
-              <div className="flex items-center gap-2 p-3 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-700 font-medium">
-                <WarningCircle size={16} />
-                {err}
-              </div>
-            )}
-
-            <button
-              onClick={() => {
-                void startSession();
-              }}
-              disabled={busy}
-              className="w-full inline-flex items-center justify-center gap-2 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-semibold hover:bg-blue-700 disabled:opacity-50 shadow-xs transition-colors"
-            >
-              <Key size={16} weight="bold" />
-              {busy ? 'Opening Browser...' : 'Start Session Setup'}
-            </button>
-          </div>
-        )}
-
-        {step === 'waiting' && (
-          <div className="space-y-4">
-            <div className="flex items-center gap-3 p-4 bg-amber-50 border border-amber-200/80 rounded-xl">
-              <span className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse shrink-0" />
-              <div>
-                <p className="text-xs font-bold text-amber-900">Browser is open</p>
-                <p className="text-xs text-amber-800 mt-0.5">
-                  Complete manual login in the browser window and reach your Facebook home feed.
-                </p>
-              </div>
-            </div>
-
-            <p className="text-xs text-zinc-600 leading-relaxed">
-              Once you are fully logged in and on the Facebook home page, click{' '}
-              <strong className="font-semibold text-zinc-900">Confirm Login</strong> to capture cookies and state.
-            </p>
-
-            {err && (
-              <div className="flex items-center gap-2 p-3 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-700">
-                <WarningCircle size={16} />
-                {err}
-              </div>
-            )}
-
-            <button
-              onClick={() => {
-                void confirmSession();
-              }}
-              disabled={busy}
-              className="w-full inline-flex items-center justify-center gap-2 py-2.5 bg-emerald-600 text-white rounded-xl text-sm font-semibold hover:bg-emerald-700 disabled:opacity-50 shadow-xs transition-colors"
-            >
-              <CheckCircle size={16} weight="bold" />
-              {busy ? 'Saving Session...' : 'Confirm Login'}
-            </button>
-          </div>
-        )}
-
-        {step === 'done' && (
+        {step === 'done' ? (
           <div className="text-center py-6 space-y-3">
             <div className="w-12 h-12 rounded-full bg-emerald-100 text-emerald-600 mx-auto flex items-center justify-center">
               <CheckCircle size={28} weight="fill" />
@@ -192,6 +185,177 @@ export default function Session() {
               Add another account
             </button>
           </div>
+        ) : mode === 'browser' ? (
+          step === 'idle' ? (
+            <div className="space-y-4">
+              <div className="flex items-start gap-3 p-3.5 rounded-xl bg-blue-50/70 border border-blue-100">
+                <Browser size={20} className="text-blue-600 mt-0.5 shrink-0" />
+                <p className="text-xs text-blue-900 leading-relaxed">
+                  Clicking the button below launches a Playwright browser window. Log into Facebook manually, then return here to confirm.
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-zinc-700 mb-1.5 uppercase tracking-wider">
+                  Account Name
+                </label>
+                <input
+                  value={name}
+                  onChange={(e) => {
+                    setName(e.target.value);
+                    if (err) setErr('');
+                  }}
+                  className="input"
+                  placeholder="Main Account"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-zinc-700 mb-1.5 uppercase tracking-wider flex items-center justify-between">
+                  <span>Proxy URL (Optional)</span>
+                  <span className="text-[10px] text-zinc-400 font-normal lowercase">recommended for VPS</span>
+                </label>
+                <input
+                  value={proxyUrl}
+                  onChange={(e) => setProxyUrl(e.target.value)}
+                  className="input font-mono text-xs"
+                  placeholder="http://user:pass@host:port or host:port:user:pass"
+                />
+              </div>
+
+              {err && (
+                <div className="flex items-center gap-2 p-3 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-700 font-medium">
+                  <WarningCircle size={16} />
+                  {err}
+                </div>
+              )}
+
+              <button
+                onClick={() => {
+                  void startSession();
+                }}
+                disabled={busy}
+                className="w-full inline-flex items-center justify-center gap-2 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-semibold hover:bg-blue-700 disabled:opacity-50 shadow-xs transition-colors"
+              >
+                <Key size={16} weight="bold" />
+                {busy ? 'Opening Browser...' : 'Start Session Setup'}
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="flex items-center gap-3 p-4 bg-amber-50 border border-amber-200/80 rounded-xl">
+                <span className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse shrink-0" />
+                <div>
+                  <p className="text-xs font-bold text-amber-900">Browser is open</p>
+                  <p className="text-xs text-amber-800 mt-0.5">
+                    Complete manual login in the browser window and reach your Facebook home feed.
+                  </p>
+                </div>
+              </div>
+
+              <p className="text-xs text-zinc-600 leading-relaxed">
+                Once you are fully logged in and on the Facebook home page, click{' '}
+                <strong className="font-semibold text-zinc-900">Confirm Login</strong> to capture cookies and state.
+              </p>
+
+              {err && (
+                <div className="flex items-center gap-2 p-3 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-700">
+                  <WarningCircle size={16} />
+                  {err}
+                </div>
+              )}
+
+              <button
+                onClick={() => {
+                  void confirmSession();
+                }}
+                disabled={busy}
+                className="w-full inline-flex items-center justify-center gap-2 py-2.5 bg-emerald-600 text-white rounded-xl text-sm font-semibold hover:bg-emerald-700 disabled:opacity-50 shadow-xs transition-colors"
+              >
+                <CheckCircle size={16} weight="bold" />
+                {busy ? 'Saving Session...' : 'Confirm Login'}
+              </button>
+            </div>
+          )
+        ) : (
+          /* Import Mode Form */
+          <form onSubmit={handleImportSession} className="space-y-4">
+            <div className="flex items-start gap-3 p-3.5 rounded-xl bg-purple-50/70 border border-purple-100">
+              <UploadSimple size={20} className="text-purple-600 mt-0.5 shrink-0" />
+              <p className="text-xs text-purple-900 leading-relaxed">
+                Upload or paste a saved Playwright <code className="font-mono text-purple-950 font-semibold">storageState.json</code> or cookie array. Useful for headless VPS deployments without GUI!
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-zinc-700 mb-1.5 uppercase tracking-wider">
+                Account Name
+              </label>
+              <input
+                value={name}
+                onChange={(e) => {
+                  setName(e.target.value);
+                  if (err) setErr('');
+                }}
+                className="input"
+                placeholder="VPS Account"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-zinc-700 mb-1.5 uppercase tracking-wider flex items-center justify-between">
+                <span>Proxy URL (Optional)</span>
+                <span className="text-[10px] text-zinc-400 font-normal lowercase">recommended for VPS</span>
+              </label>
+              <input
+                value={proxyUrl}
+                onChange={(e) => setProxyUrl(e.target.value)}
+                className="input font-mono text-xs"
+                placeholder="http://user:pass@host:port or host:port:user:pass"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-zinc-700 mb-1.5 uppercase tracking-wider flex items-center justify-between">
+                <span>Session Data (JSON)</span>
+                <label className="text-[11px] text-blue-600 hover:text-blue-700 cursor-pointer font-medium">
+                  Upload .json file
+                  <input
+                    type="file"
+                    accept=".json,application/json"
+                    onChange={handleFileUpload}
+                    className="hidden"
+                  />
+                </label>
+              </label>
+              <textarea
+                rows={5}
+                value={sessionJson}
+                onChange={(e) => {
+                  setSessionJson(e.target.value);
+                  if (err) setErr('');
+                }}
+                className="input font-mono text-xs"
+                placeholder='{"cookies": [...], "origins": [...]}'
+              />
+            </div>
+
+            {err && (
+              <div className="flex items-center gap-2 p-3 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-700 font-medium">
+                <WarningCircle size={16} />
+                {err}
+              </div>
+            )}
+
+            <button
+              type="submit"
+              disabled={busy}
+              className="w-full inline-flex items-center justify-center gap-2 py-2.5 bg-purple-600 text-white rounded-xl text-sm font-semibold hover:bg-purple-700 disabled:opacity-50 shadow-xs transition-colors"
+            >
+              <UploadSimple size={16} weight="bold" />
+              {busy ? 'Importing...' : 'Import & Save Session'}
+            </button>
+          </form>
         )}
       </div>
 
@@ -255,7 +419,15 @@ export default function Session() {
                   <td className="px-5 py-3.5 text-xs text-zinc-500 font-mono">
                     {new Date(a.createdAt).toLocaleDateString()}
                   </td>
-                  <td className="px-5 py-3.5 text-right">
+                  <td className="px-5 py-3.5 text-right space-x-2">
+                    <button
+                      onClick={() => handleExport(a.id, a.name)}
+                      title="Download session JSON for VPS or backup"
+                      className="px-2.5 py-1 text-xs font-semibold rounded-lg text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100 transition-colors inline-flex items-center gap-1"
+                    >
+                      <DownloadSimple size={13} />
+                      Export
+                    </button>
                     <button
                       onClick={() => handleDelete(a.id)}
                       className="px-2.5 py-1 text-xs font-semibold rounded-lg text-rose-600 hover:text-rose-700 hover:bg-rose-50 transition-colors inline-flex items-center gap-1"

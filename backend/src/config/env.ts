@@ -7,6 +7,8 @@ export const config = {
   port: Number(process.env['PORT'] ?? 3001),
   nodeEnv: process.env['NODE_ENV'] ?? 'development',
   corsOrigin: process.env['CORS_ORIGIN'] ?? 'http://localhost:5173',
+  adminPassword: process.env['ADMIN_PASSWORD'] ?? '',
+  jwtSecret: process.env['JWT_SECRET'] ?? 'fesnuk-automation-jwt-secret-key-32chars',
   sessionsDir: path.resolve(root, process.env['SESSIONS_DIR'] ?? 'sessions'),
   uploadsDir: path.resolve(root, process.env['UPLOADS_DIR'] ?? 'uploads'),
   logsDir: path.resolve(root, process.env['LOGS_DIR'] ?? 'logs'),

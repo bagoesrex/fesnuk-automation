@@ -121,3 +121,89 @@ export async function deleteAccount(req: Request, res: Response, next: NextFunct
     next(err);
   }
 }
+
+export async function exportSession(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { id } = req.params as { id: string };
+    const account = await db.account.findUnique({ where: { id } });
+    if (!account) {
+      res.status(404).json({ success: false, error: 'Account not found', code: 'NOT_FOUND' });
+      return;
+    }
+
+    const abs = path.resolve(config.sessionsDir, '..', account.sessionPath);
+    const content = await fs.readFile(abs, 'utf-8');
+    const safeName = account.name.toLowerCase().replace(/[^a-z0-9]/g, '_');
+
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Content-Disposition', `attachment; filename="session-${safeName}.json"`);
+    res.send(content);
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function importSession(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { name, proxyUrl, sessionData } = req.body as {
+      name?: string;
+      proxyUrl?: string;
+      sessionData?: unknown;
+    };
+
+    if (!name?.trim()) {
+      res.status(422).json({ success: false, error: 'name is required', code: 'VALIDATION_ERROR' });
+      return;
+    }
+
+    if (!sessionData) {
+      res.status(422).json({ success: false, error: 'sessionData is required', code: 'VALIDATION_ERROR' });
+      return;
+    }
+
+    let parsed: unknown;
+    try {
+      parsed = typeof sessionData === 'string' ? JSON.parse(sessionData) : sessionData;
+    } catch {
+      res.status(422).json({ success: false, error: 'sessionData must be valid JSON', code: 'INVALID_JSON' });
+      return;
+    }
+
+    // Validate Playwright storageState or cookie array structure
+    const isCookieArray = Array.isArray(parsed) && parsed.length > 0;
+    const isStorageState = Boolean(
+      parsed &&
+        typeof parsed === 'object' &&
+        Array.isArray((parsed as { cookies?: unknown[] }).cookies) &&
+        (parsed as { cookies: unknown[] }).cookies.length > 0
+    );
+
+    if (!isCookieArray && !isStorageState) {
+      res.status(422).json({
+        success: false,
+        error: 'Invalid session structure: must contain cookies or Playwright storageState format',
+        code: 'INVALID_SESSION_DATA',
+      });
+      return;
+    }
+
+    // Write session file
+    await fs.mkdir(config.sessionsDir, { recursive: true });
+    const sessionPath = path.join(config.sessionsDir, `${Date.now()}.json`);
+    await fs.writeFile(sessionPath, JSON.stringify(parsed, null, 2), 'utf-8');
+
+    const rel = path.relative(path.resolve(config.sessionsDir, '..'), sessionPath);
+    const account = await db.account.create({
+      data: {
+        name: name.trim(),
+        sessionPath: rel,
+        proxyUrl: proxyUrl?.trim() || null,
+      },
+    });
+
+    logger.info(`Session imported successfully for account: ${account.id} (${account.name})`);
+    res.json({ success: true, data: account });
+  } catch (err) {
+    next(err);
+  }
+}

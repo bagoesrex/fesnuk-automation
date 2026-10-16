@@ -13,22 +13,39 @@ import groupsRouter from './routes/groups.ts';
 import postsRouter from './routes/posts.ts';
 import schedulesRouter from './routes/schedules.ts';
 import logsRouter from './routes/logs.ts';
+import authRouter from './routes/auth.ts';
+import { requireAuth } from './middlewares/auth.ts';
 
 const app = express();
 
-app.use(cors({ origin: config.corsOrigin }));
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+const allowedOrigins = config.corsOrigin.split(',').map((o) => o.trim());
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins.includes('*') || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(null, false);
+      }
+    },
+    credentials: true,
+  })
+);
+app.use(express.json({ limit: '20mb' }));
+app.use(express.urlencoded({ extended: true, limit: '20mb' }));
 
 // serve uploaded images statically
 app.use('/uploads', express.static(config.uploadsDir));
 
-// API routes
-app.use('/api/v1/accounts', accountsRouter);
-app.use('/api/v1/groups', groupsRouter);
-app.use('/api/v1/posts', postsRouter);
-app.use('/api/v1/schedules', schedulesRouter);
-app.use('/api/v1/logs', logsRouter);
+// Public auth routes
+app.use('/api/v1/auth', authRouter);
+
+// Protected API routes
+app.use('/api/v1/accounts', requireAuth, accountsRouter);
+app.use('/api/v1/groups', requireAuth, groupsRouter);
+app.use('/api/v1/posts', requireAuth, postsRouter);
+app.use('/api/v1/schedules', requireAuth, schedulesRouter);
+app.use('/api/v1/logs', requireAuth, logsRouter);
 
 app.use(notFound);
 app.use(errorHandler);

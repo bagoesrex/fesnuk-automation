@@ -287,6 +287,16 @@ test('session page shows setup form', async ({ app, screen }) => {
   await expect(screen.getByPlaceholder('Main Account')).toBeVisible();
 });
 
+test('session page shows Browser Login and Import Session tabs', async ({ app, screen }) => {
+  await app.open('/session');
+  await expect(screen.getByRole('button', 'Browser Login (Local)')).toBeVisible();
+  await expect(screen.getByRole('button', 'Import Session JSON (VPS)')).toBeVisible();
+
+  await screen.getByRole('button', 'Import Session JSON (VPS)').tap();
+  await expect(screen.getByRole('button', 'Import & Save Session')).toBeVisible();
+  await expect(screen.getByPlaceholder('VPS Account')).toBeVisible();
+});
+
 test('session page shows saved accounts table', async ({ app, screen }) => {
   await app.open('/session');
   await expect(screen.getByRole('heading', 'Saved Accounts')).toBeVisible();
