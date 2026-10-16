@@ -99,24 +99,31 @@ async function postToGroup(
       await dialog.waitFor({ timeout: 15000 });
     }
 
-    // ── Step 3: Click and type into composer textbox inside dialog ────────────
+    // ── Step 3: Click and insert text into composer textbox inside dialog ─────
     const textbox = dialog.locator('[role="textbox"]').first();
     await textbox.waitFor({ timeout: 10000 });
     await textbox.click({ force: true });
     await textbox.focus().catch(() => {});
     await delay(randomInt(300, 600));
 
-    // Type content character by character for human-like pacing
+    // Insert text directly via InputEvent — character-by-character typing triggers
+    // Facebook's member mention dropdown, and subsequent newlines ('\n') press Enter,
+    // which accidentally selects member tags (e.g. tagging people named "Android", "Recovery")
     const imagePaths = JSON.parse(post.imagePaths) as string[];
-    for (const char of post.content) {
-      await page.keyboard.type(char, { delay: randomInt(30, 80) });
-    }
+    await page.keyboard.insertText(post.content);
+    await delay(randomInt(500, 800));
 
-    // Fallback: verify text registered; if empty, insert directly via InputEvent
+    // Fallback: verify text registered; if empty, insert via execCommand
     const currentText = await textbox.innerText().catch(() => '');
     if (!currentText.trim() && post.content.trim()) {
       await textbox.focus().catch(() => {});
-      await page.keyboard.insertText(post.content);
+      await page.evaluate((text) => {
+        const el = document.activeElement;
+        if (el) {
+          document.execCommand('insertText', false, text);
+        }
+      }, post.content);
+      await delay(500);
     }
 
     // Dismiss any auto-suggestion / mention dropdown that may have appeared
