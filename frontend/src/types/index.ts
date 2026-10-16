@@ -4,6 +4,7 @@ export interface Account {
   id: string;
   name: string;
   sessionPath: string;
+  proxyUrl?: string | null;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;

@@ -4,6 +4,7 @@ import { config } from '../config/env.ts';
 import path from 'path';
 import fs from 'fs/promises';
 import logger from '../utils/logger.ts';
+import { createStealthBrowser, createStealthContext } from '../utils/browser.ts';
 
 // In-memory ref to the headed browser context during session setup
 let pendingBrowserClose: (() => Promise<void>) | null = null;
@@ -19,19 +20,14 @@ export async function listAccounts(req: Request, res: Response, next: NextFuncti
 
 export async function startSession(req: Request, res: Response, next: NextFunction) {
   try {
-    const { name } = req.body as { name?: string };
+    const { name, proxyUrl } = req.body as { name?: string; proxyUrl?: string };
     if (!name?.trim()) {
       res.status(422).json({ success: false, error: 'name is required', code: 'VALIDATION_ERROR' });
       return;
     }
 
-    // lazy import playwright-extra to avoid loading on startup
-    const { chromium } = await import('playwright-extra');
-    const StealthPlugin = (await import('puppeteer-extra-plugin-stealth')).default;
-    chromium.use(StealthPlugin());
-
-    const browser = await chromium.launch({ headless: false, slowMo: config.playwright.slowMo });
-    const ctx = await browser.newContext();
+    const browser = await createStealthBrowser({ headless: false });
+    const ctx = await createStealthContext(browser, { proxyUrl });
     const page = await ctx.newPage();
     await page.goto('https://www.facebook.com/login');
 
@@ -44,7 +40,11 @@ export async function startSession(req: Request, res: Response, next: NextFuncti
       // upsert account record
       const rel = path.relative(path.resolve(config.sessionsDir, '..'), sessionPath);
       const account = await db.account.create({
-        data: { name: name.trim(), sessionPath: rel },
+        data: {
+          name: name.trim(),
+          sessionPath: rel,
+          proxyUrl: proxyUrl?.trim() || null,
+        },
       });
       logger.info(`Session saved for account: ${account.id}`);
       // store account id on closure so confirm can return it
@@ -68,6 +68,22 @@ export async function confirmSession(req: Request, res: Response, next: NextFunc
     const accountId = (pendingBrowserClose as unknown as { accountId: string }).accountId;
     pendingBrowserClose = null;
     const account = await db.account.findUniqueOrThrow({ where: { id: accountId } });
+    res.json({ success: true, data: account });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function updateAccount(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { id } = req.params as { id: string };
+    const { name, proxyUrl, isActive } = req.body as { name?: string; proxyUrl?: string; isActive?: boolean };
+    const data: Record<string, unknown> = {};
+    if (name !== undefined) data['name'] = name.trim();
+    if (proxyUrl !== undefined) data['proxyUrl'] = proxyUrl?.trim() || null;
+    if (isActive !== undefined) data['isActive'] = isActive;
+
+    const account = await db.account.update({ where: { id }, data });
     res.json({ success: true, data: account });
   } catch (err) {
     next(err);

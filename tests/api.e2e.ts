@@ -3,6 +3,7 @@
 
 import { test } from 'e2e';
 import { expect } from 'e2e';
+import db from '../backend/src/config/db.ts';
 
 const API = 'http://localhost:3001/api/v1';
 
@@ -145,6 +146,21 @@ test('GET /accounts returns array', async () => {
   const body = await api('/accounts');
   expect(body.success).toBe(true);
   expect(Array.isArray(body.data)).toBe(true);
+});
+
+test('PATCH /accounts/:id updates account proxy and name', async () => {
+  const account = await db.account.create({
+    data: { name: 'Proxy Test Acc', sessionPath: 'sessions/proxy_test.json' },
+  });
+
+  const updated = await api(`/accounts/${account.id}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ proxyUrl: 'http://user:pass@1.2.3.4:8080' }),
+  });
+  expect(updated.success).toBe(true);
+  expect((updated.data as { proxyUrl?: string }).proxyUrl).toBe('http://user:pass@1.2.3.4:8080');
+
+  await db.account.delete({ where: { id: account.id } });
 });
 
 // ── Schedules ─────────────────────────────────────────────────────────────────

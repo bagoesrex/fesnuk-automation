@@ -1,8 +1,8 @@
 import { loadSession } from './session.ts';
 import db from '../config/db.ts';
-import { config } from '../config/env.ts';
 import logger from '../utils/logger.ts';
 import { delay } from '../utils/helpers.ts';
+import { createStealthBrowser, createStealthContext } from '../utils/browser.ts';
 
 interface ScrapedGroup {
   name: string;
@@ -11,14 +11,11 @@ interface ScrapedGroup {
 }
 
 export async function syncGroupsFromFacebook(
-  sessionPath: string
+  sessionPath: string,
+  proxyUrl?: string | null
 ): Promise<{ added: number; skipped: number; total: number; groups: ScrapedGroup[] }> {
-  const { chromium } = await import('playwright-extra');
-  const StealthPlugin = (await import('puppeteer-extra-plugin-stealth')).default;
-  chromium.use(StealthPlugin());
-
-  const browser = await chromium.launch({ headless: config.playwright.headless, slowMo: config.playwright.slowMo });
-  const ctx = await browser.newContext();
+  const browser = await createStealthBrowser();
+  const ctx = await createStealthContext(browser, { proxyUrl });
 
   try {
     const sessionOk = await loadSession(ctx, sessionPath);

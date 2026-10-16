@@ -9,12 +9,14 @@ import {
   WarningCircle,
   Trash,
   Plus,
+  Globe,
 } from '@phosphor-icons/react';
 
 export default function Session() {
   const { data: accounts, loading, refetch } = useAsync(() => accountsService.list(), []);
   const [step, setStep] = useState<'idle' | 'waiting' | 'done'>('idle');
   const [name, setName] = useState('');
+  const [proxyUrl, setProxyUrl] = useState('');
   const [err, setErr] = useState('');
   const [deleteErr, setDeleteErr] = useState('');
   const [busy, setBusy] = useState(false);
@@ -27,7 +29,7 @@ export default function Session() {
     setBusy(true);
     setErr('');
     try {
-      await accountsService.startSession(name.trim());
+      await accountsService.startSession(name.trim(), proxyUrl.trim() || undefined);
       setStep('waiting');
     } catch (e) {
       setErr(e instanceof Error ? e.message : 'Failed');
@@ -43,6 +45,7 @@ export default function Session() {
       await accountsService.confirmSession();
       setStep('done');
       setName('');
+      setProxyUrl('');
       await refetch();
     } catch (e) {
       setErr(e instanceof Error ? e.message : 'Failed');
@@ -97,6 +100,19 @@ export default function Session() {
                 }}
                 className="input"
                 placeholder="Main Account"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-zinc-700 mb-1.5 uppercase tracking-wider flex items-center justify-between">
+                <span>Proxy URL (Optional)</span>
+                <span className="text-[10px] text-zinc-400 font-normal lowercase">recommended for VPS</span>
+              </label>
+              <input
+                value={proxyUrl}
+                onChange={(e) => setProxyUrl(e.target.value)}
+                className="input font-mono text-xs"
+                placeholder="http://user:pass@host:port or host:port:user:pass"
               />
             </div>
 
@@ -200,6 +216,7 @@ export default function Session() {
             <thead className="bg-zinc-50/75 text-zinc-500 text-[11px] font-semibold uppercase tracking-wider border-b border-zinc-100">
               <tr>
                 <th className="px-5 py-3.5 text-left">Name</th>
+                <th className="px-5 py-3.5 text-left">Proxy</th>
                 <th className="px-5 py-3.5 text-left">Status</th>
                 <th className="px-5 py-3.5 text-left">Added</th>
                 <th className="px-5 py-3.5 text-right">Actions</th>
@@ -208,7 +225,7 @@ export default function Session() {
             <tbody className="divide-y divide-zinc-100">
               {loading ? (
                 <tr>
-                  <td colSpan={4} className="px-5 py-8 text-center text-zinc-400">
+                  <td colSpan={5} className="px-5 py-8 text-center text-zinc-400">
                     <div className="inline-flex items-center gap-2 text-sm text-zinc-500">
                       <span className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
                       Loading accounts...
@@ -218,6 +235,16 @@ export default function Session() {
               ) : accounts?.map((a) => (
                 <tr key={a.id} className="hover:bg-zinc-50/60 transition-colors">
                   <td className="px-5 py-3.5 font-bold text-zinc-900">{a.name}</td>
+                  <td className="px-5 py-3.5 text-xs font-mono text-zinc-600">
+                    {a.proxyUrl ? (
+                      <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-zinc-100 text-zinc-700 font-medium">
+                        <Globe size={13} className="text-blue-600 shrink-0" />
+                        {a.proxyUrl.replace(/:[^:@]+@/, ':***@')}
+                      </span>
+                    ) : (
+                      <span className="text-zinc-400 italic">Direct</span>
+                    )}
+                  </td>
                   <td className="px-5 py-3.5">
                     <Badge
                       label={a.isActive ? 'Active' : 'Inactive'}
@@ -241,7 +268,7 @@ export default function Session() {
               ))}
               {!loading && !accounts?.length && (
                 <tr>
-                  <td colSpan={4} className="px-5 py-12 text-center text-zinc-400">
+                  <td colSpan={5} className="px-5 py-12 text-center text-zinc-400">
                     <p className="text-sm font-medium">No accounts yet</p>
                     <p className="text-xs text-zinc-500 mt-1">
                       Configure your first Facebook account session above.

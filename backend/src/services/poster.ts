@@ -5,6 +5,7 @@ import { delay, randomInt } from '../utils/helpers.ts';
 import { config } from '../config/env.ts';
 import logger from '../utils/logger.ts';
 import path from 'path';
+import { createStealthBrowser, createStealthContext, humanClick } from '../utils/browser.ts';
 
 type ScheduleWithRelations = Schedule & {
   post: Post;
@@ -13,11 +14,7 @@ type ScheduleWithRelations = Schedule & {
 };
 
 export async function runPosting(schedule: ScheduleWithRelations): Promise<void> {
-  const { chromium } = await import('playwright-extra');
-  const StealthPlugin = (await import('puppeteer-extra-plugin-stealth')).default;
-  chromium.use(StealthPlugin());
-
-  const browser = await chromium.launch({ headless: config.playwright.headless, slowMo: config.playwright.slowMo });
+  const browser = await createStealthBrowser();
 
   try {
     for (const { group } of schedule.scheduleGroups) {
@@ -26,7 +23,10 @@ export async function runPosting(schedule: ScheduleWithRelations): Promise<void>
         continue;
       }
 
-      const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+      const ctx = await createStealthContext(browser, {
+        proxyUrl: schedule.account.proxyUrl,
+        viewport: { width: 1280, height: 900 },
+      });
       try {
         // load saved session
         const sessionOk = await loadSession(ctx, schedule.account.sessionPath);
@@ -79,7 +79,7 @@ async function postToGroup(
     await composerTrigger.waitFor({ timeout: 15000 });
     await composerTrigger.scrollIntoViewIfNeeded();
     await delay(500);
-    await composerTrigger.click();
+    await humanClick(page, composerTrigger);
     await delay(randomInt(1200, 2000));
 
     // ── Step 2: Wait for composer dialog to open ──────────────────────────────
@@ -89,7 +89,7 @@ async function postToGroup(
       await dialog.waitFor({ timeout: 8000 });
     } catch {
       // Retry click once if dialog didn't open immediately
-      await composerTrigger.click();
+      await humanClick(page, composerTrigger);
       await dialog.waitFor({ timeout: 15000 });
     }
 
@@ -158,7 +158,7 @@ async function postToGroup(
     // Scroll button into view in case dialog overflow hides it
     await postBtn.scrollIntoViewIfNeeded();
     await delay(randomInt(200, 400));
-    await postBtn.click();
+    await humanClick(page, postBtn);
 
     // Wait for dialog to close (post submitted successfully)
     await dialog.waitFor({ state: 'detached', timeout: 30000 });

@@ -76,7 +76,7 @@ export async function syncGroups(req: Request, res: Response, next: NextFunction
       res.status(404).json({ success: false, error: 'Account not found', code: 'NOT_FOUND' });
       return;
     }
-    const result = await syncGroupsFromFacebook(account.sessionPath);
+    const result = await syncGroupsFromFacebook(account.sessionPath, account.proxyUrl);
     res.json({ success: true, data: result });
   } catch (err) {
     next(err);
