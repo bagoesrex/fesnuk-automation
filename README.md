@@ -144,7 +144,7 @@ Because Linux VPS servers have no GUI display, use the built-in **Session Export
 
 ## Anti-Detection & Proxy Best Practices
 
-1. **Always Use Residential / 4G Mobile Proxies**: VPS datacenter IP ranges (AWS, DigitalOcean, Hetzner, Linode) are heavily flagged by Facebook. Use a static residential proxy or your own 4G mobile proxy (e.g. via Tailscale + Every Proxy on an Android device).
+1. **Always Use Residential / 4G Mobile Proxies**: VPS datacenter IP ranges (AWS, DigitalOcean, Hetzner, Linode) are heavily flagged by Facebook. Use a static residential proxy or turn an Android phone into your own 4G mobile proxy. See the full step-by-step guide: [docs/MOBILE-PROXY-SETUP.md](docs/MOBILE-PROXY-SETUP.md).
 2. **Proxy Failure Isolation**: If a configured proxy is unreachable or drops, the system will fail safe and log an error rather than falling back to the VPS datacenter IP.
 3. **Random Schedule Ordering & Delays**: In Schedules, use **Select All (Random)** and configure natural min/max posting delays (e.g. 180s to 360s).
 
