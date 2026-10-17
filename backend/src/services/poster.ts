@@ -1,6 +1,6 @@
 import type { Schedule, Post, Account, Group } from '@prisma/client';
 import db from '../config/db.ts';
-import { loadSession } from './session.ts';
+import { loadSession, saveSession, assertSessionActive, SessionExpiredError } from './session.ts';
 import { delay, randomInt } from '../utils/helpers.ts';
 import { config } from '../config/env.ts';
 import logger from '../utils/logger.ts';
@@ -32,15 +32,26 @@ export async function runPosting(schedule: ScheduleWithRelations): Promise<void>
         // load saved session
         const sessionOk = await loadSession(ctx, schedule.account.sessionPath);
         if (!sessionOk) {
-          await writeLog(schedule, group, 'SKIPPED', 'Session invalid or expired');
+          await writeLog(schedule, group, 'SKIPPED', 'Session file missing or invalid');
           await ctx.close();
-          continue;
+          break;
         }
 
         await postToGroup(ctx, group, schedule.post, schedule.account.sessionPath);
+        await saveSession(ctx, schedule.account.sessionPath);
         await writeLog(schedule, group, 'SUCCESS');
         logger.info(`Posted to group ${group.name} (schedule ${schedule.id})`);
       } catch (err) {
+        if (err instanceof SessionExpiredError) {
+          const msg = err.message;
+          await writeLog(schedule, group, 'FAILED', msg);
+          logger.error(`Aborting schedule ${schedule.id}: ${msg}`);
+          await db.account.update({
+            where: { id: schedule.account.id },
+            data: { isActive: false },
+          }).catch(() => {});
+          throw err;
+        }
         const msg = err instanceof Error ? err.message : String(err);
         await writeLog(schedule, group, 'FAILED', msg);
         logger.error(`Failed posting to group ${group.name}: ${msg}`);
@@ -74,6 +85,16 @@ async function postToGroup(
     // human-like: random scroll then pause — also helps Facebook render feed elements
     await page.evaluate(() => (window as any).scrollBy(0, 200 + Math.random() * 400));
     await delay(randomInt(1500, 2500));
+
+    // Check if session is alive before attempting to interact with group
+    await assertSessionActive(page);
+
+    // Check if user is not a member of this group
+    const joinBtn = page.locator('[role="button"]').filter({ hasText: /gabung ke grup|join group|gabung grup/i }).first();
+    const isJoinVisible = await joinBtn.isVisible().catch(() => false);
+    if (isJoinVisible) {
+      throw new Error('Not a member of this group (Join Group button detected)');
+    }
 
     // ── Step 1: Click "Tulis sesuatu..." / "Write something..." trigger ────────
     const composerTrigger = page

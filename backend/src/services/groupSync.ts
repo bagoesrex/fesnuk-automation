@@ -1,4 +1,4 @@
-import { loadSession } from './session.ts';
+import { loadSession, assertSessionActive } from './session.ts';
 import db from '../config/db.ts';
 import logger from '../utils/logger.ts';
 import { delay } from '../utils/helpers.ts';
@@ -27,9 +27,7 @@ export async function syncGroupsFromFacebook(
     await page.goto('https://www.facebook.com/groups/joins/', { waitUntil: 'domcontentloaded', timeout: 30000 });
     await delay(2500);
 
-    if (page.url().includes('/login')) {
-      throw new Error('Session expired — please re-setup the account session');
-    }
+    await assertSessionActive(page);
 
     const scraped = await scrapeAllGroups(page);
     logger.info(`Scraped ${scraped.length} groups from facebook.com/groups/joins/`);
