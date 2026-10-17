@@ -100,7 +100,20 @@ async function postToGroup(
     const composerTrigger = page
       .locator('[role="button"]', { hasText: /tulis sesuatu|write something|buat postingan publik/i })
       .first();
-    await composerTrigger.waitFor({ timeout: 15000 });
+
+    const isTriggerPresent = await composerTrigger.waitFor({ timeout: 10000 }).then(() => true).catch(() => false);
+    if (!isTriggerPresent) {
+      const isSellGroup = await page
+        .locator('[role="button"][aria-label*="Jual Sesuatu" i], [role="button"][aria-label*="Sell Something" i]')
+        .first()
+        .isVisible()
+        .catch(() => false);
+      if (isSellGroup) {
+        throw new Error('Group is in Buy and Sell mode only (discussion composer not available)');
+      }
+      await composerTrigger.waitFor({ timeout: 5000 });
+    }
+
     await composerTrigger.scrollIntoViewIfNeeded();
     // Offset slightly so it's not tucked under Facebook's sticky navbar
     await page.evaluate(() => (window as any).scrollBy(0, -120));
@@ -109,8 +122,12 @@ async function postToGroup(
     await delay(randomInt(1200, 2000));
 
     // ── Step 2: Wait for composer dialog to open ──────────────────────────────
-    // Index 0 has the actual composer content (no aria-label).
-    const dialog = page.locator('[role="dialog"]').first();
+    // Match the actual composer modal and ignore Facebook's hidden notification dialog
+    const dialog = page
+      .locator('[role="dialog"]')
+      .filter({ hasNot: page.locator('[aria-label="Notifikasi"], [aria-label="Notifications"]') })
+      .filter({ hasText: /buat postingan|create post|create a post/i })
+      .first();
     try {
       await dialog.waitFor({ timeout: 8000 });
     } catch {
@@ -122,7 +139,8 @@ async function postToGroup(
 
     // ── Step 3: Click and insert text into composer textbox inside dialog ─────
     const textbox = dialog.locator('[role="textbox"]').first();
-    await textbox.waitFor({ timeout: 10000 });
+    // Facebook takes longer to hydrate Lexical editor on slower mobile proxies (replacing skeleton loader)
+    await textbox.waitFor({ timeout: 25000 });
     await textbox.click({ force: true });
     await textbox.focus().catch(() => {});
     await delay(randomInt(300, 600));
