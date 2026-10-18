@@ -2,20 +2,25 @@
 
 ## v1 — Core (Current Scope)
 
-### Session Management
-- [x] Manual login flow via headed Playwright browser
-- [x] Cookie + localStorage persistence to JSON file
-- [x] Session status indicator in dashboard
-- [x] Single account support
+### Session & Account Management
+- [x] Manual login flow via headed Playwright browser (local)
+- [x] Cookie persistence to JSON file with automatic token rotation saving
+- [x] Headless session import/export (JSON) for VPS deployments
+- [x] Per-account proxy assignment (HTTP / SOCKS5)
+- [x] Session health guard with auto-abort on logout / checkpoint detection
+- [x] Multiple accounts support
 
 ### Group Management
 - [x] Add groups by pasting Facebook Group URL
 - [x] Auto-extract group ID from URL
+- [x] One-click group sync from `facebook.com/groups/joins/`
+- [x] Buy & Sell mode detection
 - [x] Enable / disable individual groups
 - [x] Delete groups (blocked if in active schedule)
 
 ### Post Content
 - [x] Create posts with text/caption
+- [x] Direct text insertion preventing unintentional mention tags
 - [x] Upload up to 5 images per post (JPEG/PNG)
 - [x] Internal title for easy identification
 - [x] Enable / disable posts
@@ -42,26 +47,24 @@
 ### Logging & Monitoring
 - [x] Per-attempt audit log (group, post, account, status, timestamp)
 - [x] Error message capture on failure
+- [x] Full DOM snapshot (.html) and screenshot (.png) on error in `logs/`
 - [x] Dashboard stats (total posts, success rate, active schedules)
 - [x] Filterable log table (by schedule, group, status)
 - [x] Pagination for log history
 
-### Dashboard (React)
+### Dashboard & Security
 - [x] Overview page with key metrics
 - [x] Groups management page
 - [x] Posts management page with image preview
 - [x] Schedules management page with cron helper
 - [x] Logs page with filters
-- [x] Session setup wizard
+- [x] Session setup & import wizard
+- [x] Master admin password with JWT authentication & brute-force protection
+- [x] Vercel SPA routing rewrites and build-ignore optimization
 
 ---
 
 ## v2 — Planned
-
-### Multiple Accounts
-- [ ] Add and manage multiple Facebook accounts
-- [ ] Assign different accounts to different schedules
-- [ ] Account rotation across schedules
 
 ### Content Templates
 - [ ] Variable substitution in post content (`{{date}}`, `{{group_name}}`, etc.)
@@ -74,15 +77,10 @@
 - [ ] Blackout windows (don't post between certain hours)
 - [ ] Daily posting limits per account
 
-### Analytics
+### Analytics & Alerts
 - [ ] Success rate trends over time (chart)
 - [ ] Per-group engagement tracking
-- [ ] Best posting time suggestions based on log history
-
-### Reliability
-- [ ] Session health check (auto-detect expired sessions)
-- [ ] Email / webhook alerts on repeated failures
-- [ ] Exponential backoff for retries
+- [ ] Telegram / webhook alerts on repeated failures
 
 ### Operations
 - [ ] Docker Compose setup for easy deployment

@@ -19,13 +19,13 @@ A self-hosted automation system for scheduling and posting content (text + image
 
 - **Dashboard Security & Auth**: Master Admin Password with JWT session tokens and brute-force protection (lockout after 5 failed attempts).
 - **Vercel + VPS Architecture Ready**: Deploy the frontend on Vercel and backend API on VPS with CORS protection.
-- **Session Export & Import (VPS Friendly)**: Authenticate Facebook sessions locally via headed browser, export the session JSON, and import directly into headless VPS instances without GUI / X11.
+- **Session Export & Import (VPS Friendly)**: Authenticate Facebook sessions locally via headed browser, export the session JSON, and import directly into headless VPS instances without GUI / X11. Features automatic cookie rotation persistence and proactive logout detection (`assertSessionActive`).
 - **Proxy Support per Account**: Assign Residential or 4G Mobile proxy (HTTP/SOCKS5) per account to safely run on VPS.
-- **Hardware & Anti-Detection Spoofing**: WebGL GPU masking (spoofs SwiftShader to NVIDIA), WebRTC IP leak blocking, natural typing cadence, and human-like cursor curves.
-- **Automatic Group Sync**: One-click sync from `facebook.com/groups/joins/` with automated title cleaning.
+- **Hardware & Anti-Detection Spoofing**: WebGL GPU masking (spoofs SwiftShader to NVIDIA), WebRTC IP leak blocking, natural typing cadence, direct input text insertion (avoids accidental mention tags), and human-like cursor curves.
+- **Automatic Group Sync**: One-click sync from `facebook.com/groups/joins/` with automated title cleaning and Buy & Sell mode detection.
 - **Flexible Scheduling**: Cron-based batch execution with customizable random min/max delays between groups and randomized group ordering.
 - **Live Media Management**: Multi-image attachments with real-time preview and lightbox viewer.
-- **Audit Logging**: Comprehensive post execution history with status filtering and error tracking.
+- **Audit Logging & Diagnostics**: Comprehensive post execution history with automated DOM snapshots (`.html`) and screenshots (`.png`) for any post failure.
 
 ---
 
@@ -117,10 +117,11 @@ bun run dev:frontend  # Start frontend
 4. Setup PM2 / Systemd service and reverse proxy via Nginx with Let's Encrypt SSL (`https://api.yourdomain.com`).
 
 ### Step 2: Vercel Frontend Deployment
-1. Import repository to Vercel (Root Directory: `frontend`).
+1. Import repository to Vercel (Root Directory: `frontend` or root with `frontend/vercel.json`).
 2. Add Environment Variable:
    - `VITE_API_URL`: `https://api.yourdomain.com/api/v1`
 3. Deploy. Accessing the dashboard will prompt for your Master Admin Password.
+4. *Note: `vercel.json` includes `ignoreCommand` out-of-the-box, ensuring backend-only Git commits automatically skip redundant Vercel frontend rebuilds.*
 
 ---
 

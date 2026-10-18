@@ -23,6 +23,44 @@ Errors:
 
 ---
 
+## Authentication
+
+When `ADMIN_PASSWORD` is configured in `.env`, all endpoints (except `/auth/*` and `GET /logs`) require `Authorization: Bearer <token>`.
+
+### `GET /auth/status`
+
+Check whether master password protection is enabled and if the current client is authenticated.
+
+**Response**
+```json
+{
+  "success": true,
+  "data": {
+    "enabled": true,
+    "authenticated": true
+  }
+}
+```
+
+### `POST /auth/login`
+
+Authenticate using the master admin password.
+
+**Body**
+```json
+{ "password": "your-admin-password" }
+```
+
+**Response**
+```json
+{
+  "success": true,
+  "data": { "token": "jwt-token-string" }
+}
+```
+
+---
+
 ## Accounts
 
 ### `GET /accounts`
@@ -37,6 +75,7 @@ List all saved accounts.
     {
       "id": "clx...",
       "name": "Main Account",
+      "proxyUrl": "http://user:pass@host:port",
       "isActive": true,
       "sessionPath": "sessions/main.json",
       "createdAt": "2026-10-14T10:00:00.000Z"
@@ -47,26 +86,41 @@ List all saved accounts.
 
 ### `POST /accounts/session/start`
 
-Opens a headed Playwright browser for the user to manually log in. The browser stays open until the user confirms login.
+Opens a headed Playwright browser for the user to manually log in.
 
 **Body**
 ```json
-{ "name": "Main Account" }
-```
-
-**Response**
-```json
-{ "success": true, "data": { "message": "Browser opened. Complete login then call /session/confirm" } }
+{ "name": "Main Account", "proxyUrl": "http://user:pass@host:port" }
 ```
 
 ### `POST /accounts/session/confirm`
 
-Saves the current browser session (cookies + localStorage) to disk and records the account in DB.
+Saves the active headed browser session to disk and records the account in DB.
 
-**Response**
+### `POST /accounts/session/import`
+
+Import Playwright storageState JSON or cookie array directly (headless VPS friendly).
+
+**Body**
 ```json
-{ "success": true, "data": { "id": "clx...", "name": "Main Account" } }
+{
+  "name": "VPS Account",
+  "sessionData": "{ \"cookies\": [...] }",
+  "proxyUrl": "http://user:pass@host:port"
+}
 ```
+
+### `GET /accounts/:id/export`
+
+Export account session JSON for backup or migration.
+
+### `POST /accounts/:id/sync-groups`
+
+Scrapes all joined groups for this account from `facebook.com/groups/joins/` and syncs them into the database.
+
+### `PATCH /accounts/:id`
+
+Update account name, proxyUrl, or active status.
 
 ### `DELETE /accounts/:id`
 

@@ -49,6 +49,10 @@ SESSIONS_DIR=./sessions
 UPLOADS_DIR=./uploads
 LOGS_DIR=./logs
 
+# Auth & Security (Optional for local testing; leave blank to disable auth)
+ADMIN_PASSWORD=your-super-strong-password
+JWT_SECRET=your-random-jwt-secret-min-32-chars
+
 # Playwright
 PLAYWRIGHT_HEADLESS=false     # false = headed mode for session setup
 BROWSER_SLOW_MO=50            # ms between actions (human-like pacing)

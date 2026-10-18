@@ -13,41 +13,44 @@ When a cron schedule fires, the following steps execute sequentially:
 
 2. For each group in the ordered list:
    │
-   ├─ a. Load Session
-   │     └─ Read cookies + localStorage from sessions/<account>.json
-   │     └─ Inject into new Playwright browser context
-   │     └─ If session invalid → log SKIPPED, continue to next group
+   ├─ a. Load Session & Early Guard
+   │     └─ Read cookies from sessions/<account>.json into new Playwright context
+   │     └─ If session file missing or unparseable → log SKIPPED, abort schedule
    │
-   ├─ b. Navigate to Group
+   ├─ b. Navigate & Validate Group
    │     └─ Go to group URL (e.g. facebook.com/groups/123456789)
-   │     └─ Wait for post composer to appear
-   │     └─ If group not found or access denied → log FAILED with error
+   │     └─ Validate authentication state (abort schedule if redirected to login / guest mode)
+   │     └─ Check membership status (fails fast if "Join Group" is visible)
+   │     └─ Detect group mode (fails fast if discussion disabled / "Buy and Sell" only)
    │
-   ├─ c. Human-Like Interaction
-   │     └─ Random scroll (200–600px)
-   │     └─ Random pause (500ms–1500ms)
-   │     └─ Click post composer
-   │     └─ Random pause (300ms–800ms)
+   ├─ c. Human-Like Composer Activation
+   │     └─ Random scroll down (200–600px) and pause (1.5s–2.5s)
+   │     └─ Scroll offset -120px to clear Facebook sticky header
+   │     └─ Click "Tulis sesuatu..." / "Write something..." with { force: true }
+   │     └─ Wait specifically for composer modal (filtering out hidden notification dialogs)
    │
-   ├─ d. Fill Content
-   │     └─ Type post text character by character
-   │        (random per-character delay: 30ms–120ms)
+   ├─ d. Fill Content (Direct Insertion)
+   │     └─ Insert text directly via keyboard.insertText() to avoid auto-triggering member mention tags on newlines
+   │     └─ Fallback verification: document.execCommand('insertText') if editor remains empty
+   │     └─ Dismiss lingering mention dropdowns by focusing dialog header
    │
    ├─ e. Attach Images (if any)
    │     └─ Click photo/video button
-   │     └─ Use Playwright file chooser to upload images
-   │     └─ Wait for upload progress to complete
+   │     └─ Set input files via absolute paths
+   │     └─ Wait for progress spinners to detach (up to 60s)
    │
    ├─ f. Submit Post
-   │     └─ Click "Post" button
-   │     └─ Wait for success confirmation (post appears in feed)
-   │     └─ Capture result
+   │     └─ Wait for submit button to be enabled (aria-disabled !== 'true', up to 45s)
+   │     └─ Click "Posting" / "Post" button with pointer force simulation
+   │     └─ Wait for modal to detach (post published)
    │
-   ├─ g. Log Result
-   │     └─ Write PostLog { status: SUCCESS | FAILED, error?, postedAt }
+   ├─ g. Cookie Auto-Save & Result Logging
+   │     └─ Auto-save rotated storageState back to sessions/<account>.json
+   │     └─ Write PostLog { status: SUCCESS }
+   │     └─ On error: capture full DOM snapshot (.html) and screenshot (.png) to logs/
    │
    ├─ h. Close Browser Context
-   │     └─ Dispose of Playwright context (not the browser itself)
+   │     └─ Dispose of Playwright context
    │
    └─ i. Wait Random Delay before next group
          └─ Math.random() * (delayMax - delayMin) + delayMin seconds
@@ -128,12 +131,19 @@ Attempt 3 → FAILED
 - Account checkpoint / locked
 - Invalid session (cookie expired)
 
-## Session Expiry Detection
+## Session Expiry & Account Protection
 
-Before each posting run, the engine checks if the session is still valid by:
-1. Loading the session into a temporary context
-2. Navigating to `facebook.com`
-3. Checking if redirected to `/login` → session expired
-4. If expired: log all groups as SKIPPED, send alert, set schedule to ERROR status
+During each group execution, the engine validates the session via `assertSessionActive(page)`:
+1. Checks for redirects to `/login` or `/checkpoint`.
+2. Checks inline Facebook metadata for unauthenticated guest mode (`USER_ID: 0`).
+3. Detects login wall modals (*"See more on Facebook"*).
+4. If expired:
+   - Sets schedule status to `ERROR` and aborts remaining groups immediately to prevent wasting time in delay loops.
+   - Automatically marks the Account as `isActive: false` to alert the user on the dashboard.
 
-The user must then redo the session setup flow.
+## Error Diagnostics & Snapshots
+
+Whenever a post fails (selector timeout, button disabled, etc.), the engine captures:
+1. **DOM Snapshot (`logs/dom-error-<timestamp>-<group>.html`)**: Full page HTML at the exact moment of failure.
+2. **Screenshot (`logs/screenshot-error-<timestamp>-<group>.png`)**: Full visual state.
+3. Appends the DOM file path directly into the error log message for fast debugging.
