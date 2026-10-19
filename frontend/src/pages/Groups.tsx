@@ -78,7 +78,7 @@ export default function Groups() {
   const activeAccounts = accounts?.filter((a) => a.isActive) ?? [];
 
   return (
-    <div className="p-8 max-w-7xl mx-auto space-y-6">
+    <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-6 border-b border-zinc-200/80">
         <div>
@@ -87,17 +87,17 @@ export default function Groups() {
             Target Facebook groups for scheduled content distribution.
           </p>
         </div>
-        <div className="flex items-center gap-2.5">
+        <div className="flex flex-wrap items-center gap-2.5 w-full sm:w-auto">
           <button
             onClick={() => { setShowSync(true); setSyncResult(null); setErr(''); }}
-            className="inline-flex items-center gap-1.5 px-4 py-2 bg-emerald-600 text-white rounded-xl text-sm font-semibold hover:bg-emerald-700 shadow-xs transition-colors"
+            className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-emerald-600 text-white rounded-xl text-sm font-semibold hover:bg-emerald-700 shadow-xs transition-colors cursor-pointer"
           >
             <ArrowsClockwise size={16} weight="bold" />
             Sync from Facebook
           </button>
           <button
             onClick={() => { setShowAdd(true); setErr(''); }}
-            className="inline-flex items-center gap-1.5 px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-semibold hover:bg-blue-700 shadow-xs transition-colors"
+            className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-semibold hover:bg-blue-700 shadow-xs transition-colors cursor-pointer"
           >
             <Plus size={16} weight="bold" />
             Add Manually
@@ -107,7 +107,8 @@ export default function Groups() {
 
       {/* Main Table */}
       <div className="bg-white rounded-2xl border border-zinc-200/80 overflow-hidden shadow-xs">
-        <table className="w-full text-sm">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm min-w-[580px]">
           <thead className="bg-zinc-50/75 text-zinc-500 text-[11px] font-semibold uppercase tracking-wider border-b border-zinc-100">
             <tr>
               <th className="px-5 py-3.5 text-left">Name</th>
@@ -180,6 +181,7 @@ export default function Groups() {
             )}
           </tbody>
         </table>
+        </div>
       </div>
 
       {/* Sync Modal */}

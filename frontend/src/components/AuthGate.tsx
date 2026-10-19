@@ -67,8 +67,8 @@ export function AuthGate({ children }: { children: ReactNode }) {
 
   if (loading) {
     return (
-      <div className="min-h-screen w-full bg-zinc-950 flex flex-col items-center justify-center text-zinc-400 gap-3">
-        <SpinnerGap size={24} className="animate-spin text-blue-500" />
+      <div className="min-h-screen w-full bg-zinc-50 flex flex-col items-center justify-center text-zinc-500 gap-3">
+        <SpinnerGap size={24} className="animate-spin text-blue-600" />
         <span className="text-xs font-mono">Connecting to engine...</span>
       </div>
     );

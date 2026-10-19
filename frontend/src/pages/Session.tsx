@@ -121,7 +121,7 @@ export default function Session() {
   }
 
   return (
-    <div className="p-8 max-w-7xl mx-auto space-y-8">
+    <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-6 sm:space-y-8">
       {/* Header */}
       <div className="pb-6 border-b border-zinc-200/80">
         <h1 className="text-2xl font-extrabold text-zinc-950 tracking-tight">Session Setup</h1>
@@ -131,14 +131,14 @@ export default function Session() {
       </div>
 
       {/* Mode Switcher */}
-      <div className="flex gap-2 p-1 bg-zinc-200/60 rounded-xl w-fit">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 p-1 bg-zinc-200/60 rounded-xl w-full sm:w-fit">
         <button
           onClick={() => {
             setMode('browser');
             setStep('idle');
             setErr('');
           }}
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition ${
+          className={`flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition cursor-pointer ${
             mode === 'browser'
               ? 'bg-white text-zinc-900 shadow-xs'
               : 'text-zinc-600 hover:text-zinc-900'
@@ -153,7 +153,7 @@ export default function Session() {
             setStep('idle');
             setErr('');
           }}
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition ${
+          className={`flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition cursor-pointer ${
             mode === 'import'
               ? 'bg-white text-zinc-900 shadow-xs'
               : 'text-zinc-600 hover:text-zinc-900'
@@ -376,7 +376,8 @@ export default function Session() {
         )}
 
         <div className="bg-white rounded-2xl border border-zinc-200/80 overflow-hidden shadow-xs">
-          <table className="w-full text-sm">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm min-w-[580px]">
             <thead className="bg-zinc-50/75 text-zinc-500 text-[11px] font-semibold uppercase tracking-wider border-b border-zinc-100">
               <tr>
                 <th className="px-5 py-3.5 text-left">Name</th>
@@ -450,6 +451,7 @@ export default function Session() {
               )}
             </tbody>
           </table>
+          </div>
         </div>
       </div>
     </div>

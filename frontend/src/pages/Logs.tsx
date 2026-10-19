@@ -14,7 +14,7 @@ export default function Logs() {
   );
 
   return (
-    <div className="p-8 max-w-7xl mx-auto space-y-6">
+    <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-6 border-b border-zinc-200/80">
         <div>
@@ -23,14 +23,14 @@ export default function Logs() {
             Audit history of automated post executions and delivery diagnostics.
           </p>
         </div>
-        <div className="flex items-center gap-2.5 self-start sm:self-auto">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-2.5 w-full sm:w-auto">
           <select
             value={statusFilter}
             onChange={(e) => {
               setStatusFilter(e.target.value);
               setPage(1);
             }}
-            className="input cursor-pointer py-1.5 text-xs font-medium w-auto"
+            className="input cursor-pointer py-1.5 text-xs font-medium flex-1 sm:flex-none sm:w-auto"
           >
             <option value="">All Statuses</option>
             <option value="SUCCESS">Success</option>
@@ -41,7 +41,7 @@ export default function Logs() {
             onClick={() => {
               void refetch();
             }}
-            className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-zinc-700 bg-white border border-zinc-200/80 rounded-xl hover:bg-zinc-50 shadow-xs transition-colors"
+            className="inline-flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-semibold text-zinc-700 bg-white border border-zinc-200/80 rounded-xl hover:bg-zinc-50 shadow-xs transition-colors cursor-pointer"
           >
             <ArrowsClockwise size={14} weight="bold" />
             Refresh
@@ -51,7 +51,8 @@ export default function Logs() {
 
       {/* Main Table */}
       <div className="bg-white rounded-2xl border border-zinc-200/80 overflow-hidden shadow-xs">
-        <table className="w-full text-sm">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm min-w-[680px]">
           <thead className="bg-zinc-50/75 text-zinc-500 text-[11px] font-semibold uppercase tracking-wider border-b border-zinc-100">
             <tr>
               <th className="px-5 py-3.5 text-left">Time</th>
@@ -111,11 +112,12 @@ export default function Logs() {
             )}
           </tbody>
         </table>
+        </div>
       </div>
 
       {/* Pagination */}
       {data && data.totalPages > 1 && (
-        <div className="flex items-center justify-between text-xs text-zinc-500 px-2">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-zinc-500 px-2">
           <span>{data.total} total executions recorded</span>
           <div className="flex items-center gap-2">
             <button

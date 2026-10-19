@@ -103,7 +103,7 @@ export default function Posts() {
   }
 
   return (
-    <div className="p-8 max-w-7xl mx-auto space-y-6">
+    <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-6 border-b border-zinc-200/80">
         <div>
@@ -117,7 +117,7 @@ export default function Posts() {
             setShowAdd(true);
             setErr('');
           }}
-          className="inline-flex items-center gap-1.5 px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-semibold hover:bg-blue-700 shadow-xs transition-colors self-start sm:self-auto"
+          className="inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-semibold hover:bg-blue-700 shadow-xs transition-colors w-full sm:w-auto self-start sm:self-auto cursor-pointer"
         >
           <Plus size={16} weight="bold" />
           Create Post
@@ -305,7 +305,7 @@ export default function Posts() {
 
               {/* Selected Images Grid Preview */}
               {filePreviews.length > 0 && (
-                <div className="mt-3 grid grid-cols-5 gap-2 p-2.5 bg-zinc-50 rounded-xl border border-zinc-200/80">
+                <div className="mt-3 grid grid-cols-3 sm:grid-cols-5 gap-2 p-2.5 bg-zinc-50 rounded-xl border border-zinc-200/80">
                   {filePreviews.map(({ file, url }, index) => (
                     <div
                       key={index}

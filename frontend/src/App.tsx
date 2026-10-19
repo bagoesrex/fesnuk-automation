@@ -12,9 +12,9 @@ export default function App() {
   return (
     <AuthGate>
       <BrowserRouter>
-        <div className="flex h-screen overflow-hidden bg-zinc-50">
+        <div className="flex flex-col md:flex-row h-screen overflow-hidden bg-zinc-50">
           <Sidebar />
-          <main className="flex-1 h-screen overflow-y-auto">
+          <main className="flex-1 min-w-0 h-full overflow-y-auto">
             <Routes>
               <Route path="/" element={<Dashboard />} />
               <Route path="/groups" element={<Groups />} />
