@@ -1,5 +1,7 @@
 const BASE = import.meta.env['VITE_API_URL'] as string ?? '/api/v1';
 
+export const API_BASE_URL = BASE;
+
 const TOKEN_KEY = 'fesnuk_auth_token';
 
 export function getAuthToken(): string | null {

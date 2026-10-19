@@ -26,12 +26,6 @@ export default function Dashboard() {
             Real-time automation telemetry, schedule activity, and group health.
           </p>
         </div>
-        <div className="flex items-center gap-2 self-start sm:self-auto">
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white border border-zinc-200/80 text-xs font-medium text-zinc-600 shadow-xs">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            Daemon Active
-          </span>
-        </div>
       </div>
 
       {/* Bento Stat Cards */}
@@ -117,10 +111,10 @@ export default function Dashboard() {
         <div className="bg-white rounded-2xl border border-zinc-200/80 shadow-xs p-6 flex flex-col justify-between">
           <div>
             <h2 className="text-base font-bold text-zinc-950 tracking-tight mb-1">
-              Engine Status
+              Engine Architecture
             </h2>
             <p className="text-xs text-zinc-500 mb-5">
-              Core runtime & anti-detection health
+              Built-in automation specifications
             </p>
 
             <div className="space-y-4">
@@ -129,7 +123,7 @@ export default function Dashboard() {
                 <div>
                   <p className="text-xs font-semibold text-zinc-900">Playwright Stealth</p>
                   <p className="text-[11px] text-zinc-500 mt-0.5">
-                    Fingerprint masking & randomized delays active
+                    Fingerprint masking & randomized anti-detection delays
                   </p>
                 </div>
               </div>
@@ -139,7 +133,7 @@ export default function Dashboard() {
                 <div>
                   <p className="text-xs font-semibold text-zinc-900">Cron Daemon</p>
                   <p className="text-[11px] text-zinc-500 mt-0.5">
-                    node-cron registry synced with SQLite schedules
+                    node-cron registry synced with scheduled tasks
                   </p>
                 </div>
               </div>
@@ -149,7 +143,7 @@ export default function Dashboard() {
                 <div>
                   <p className="text-xs font-semibold text-zinc-900">Audit Trail</p>
                   <p className="text-[11px] text-zinc-500 mt-0.5">
-                    Immutable PostLog records preserved on cascade
+                    Immutable PostLog audit records preserved on cascade
                   </p>
                 </div>
               </div>

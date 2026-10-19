@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import { authService, type AuthStatus } from '../services/auth.ts';
 import { LockScreen } from './LockScreen.tsx';
+import { ServerOfflineScreen } from './ServerOfflineScreen.tsx';
 import { SpinnerGap } from '@phosphor-icons/react';
 
 interface AuthContextType {
@@ -24,14 +25,17 @@ export function useAuth() {
 export function AuthGate({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<AuthStatus | null>(null);
   const [loading, setLoading] = useState(true);
+  const [serverError, setServerError] = useState<string | null>(null);
 
   const check = async () => {
+    setLoading(true);
+    setServerError(null);
     try {
       const res = await authService.getStatus();
       setStatus(res);
-    } catch {
-      // If backend unreachable or error, default to open if in dev, or require retry
-      setStatus({ authRequired: false, authenticated: true });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Cannot connect to backend server';
+      setServerError(msg);
     } finally {
       setLoading(false);
     }
@@ -72,6 +76,11 @@ export function AuthGate({ children }: { children: ReactNode }) {
         <span className="text-xs font-mono">Connecting to engine...</span>
       </div>
     );
+  }
+
+  // If backend is offline or unreachable, show dedicated ServerOfflineScreen!
+  if (serverError) {
+    return <ServerOfflineScreen error={serverError} onRetry={check} />;
   }
 
   if (status?.authRequired && !status.authenticated) {
