@@ -6,13 +6,21 @@ export async function listLogs(req: Request, res: Response, next: NextFunction) 
     const { scheduleId, groupId, accountId, status, page = '1', limit = '50' } =
       req.query as { scheduleId?: string; groupId?: string; accountId?: string; status?: string; page?: string; limit?: string };
 
+    if (!accountId) {
+      res.json({
+        success: true,
+        data: { logs: [], total: 0, page: Number(page), totalPages: 0 },
+      });
+      return;
+    }
+
     const take = Math.min(Number(limit), 200);
     const skip = (Number(page) - 1) * take;
 
     const where = {
       ...(scheduleId && { scheduleId }),
       ...(groupId && { groupId }),
-      ...(accountId && { accountId }),
+      accountId,
       ...(status && { status }),
     };
 
@@ -39,9 +47,22 @@ export async function listLogs(req: Request, res: Response, next: NextFunction) 
 export async function getStats(req: Request, res: Response, next: NextFunction) {
   try {
     const { accountId } = req.query as { accountId?: string };
-    const logWhere = accountId ? { accountId } : {};
-    const scheduleWhere = accountId ? { accountId, isActive: true } : { isActive: true };
-    const groupWhere = accountId ? { accountId, isActive: true } : { isActive: true };
+    if (!accountId) {
+      res.json({
+        success: true,
+        data: {
+          totalPosts: 0,
+          successRate: 0,
+          activeSchedules: 0,
+          totalGroups: 0,
+        },
+      });
+      return;
+    }
+
+    const logWhere = { accountId };
+    const scheduleWhere = { accountId, isActive: true };
+    const groupWhere = { accountId, isActive: true };
 
     const [total, succeeded, activeSchedules, totalGroups] = await Promise.all([
       db.postLog.count({ where: logWhere }),

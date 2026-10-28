@@ -5,9 +5,12 @@ import { registerSchedule, unregisterSchedule, triggerSchedule } from '../servic
 export async function listSchedules(req: Request, res: Response, next: NextFunction) {
   try {
     const { accountId } = req.query as { accountId?: string };
-    const where = accountId ? { accountId } : {};
+    if (!accountId) {
+      res.json({ success: true, data: [] });
+      return;
+    }
     const schedules = await db.schedule.findMany({
-      where,
+      where: { accountId },
       include: { post: true, account: true, scheduleGroups: { include: { group: true }, orderBy: { order: 'asc' } } },
       orderBy: { createdAt: 'desc' },
     });

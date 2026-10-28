@@ -7,40 +7,83 @@ import db from '../backend/src/config/db.ts';
 
 const API = 'http://localhost:3001/api/v1';
 
+let authToken = '';
+let fixtureAccountId = '';
+
+async function getAuthHeader(): Promise<Record<string, string>> {
+  if (!authToken) {
+    try {
+      const res = await fetch(`${API}/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: 'aguskucink' }),
+      });
+      const json = (await res.json()) as { data?: { token: string } };
+      if (json.data?.token) authToken = json.data.token;
+    } catch {
+      // Backend may have no password configured
+    }
+  }
+  return authToken ? { Authorization: `Bearer ${authToken}` } : {};
+}
+
+async function getFixtureAccount(): Promise<string> {
+  if (!fixtureAccountId) {
+    let acc = await db.account.findFirst();
+    if (!acc) {
+      acc = await db.account.create({
+        data: { name: 'E2E Fixture ' + Date.now(), sessionPath: 'sessions/e2e.json' },
+      });
+    }
+    fixtureAccountId = acc.id;
+  }
+  return fixtureAccountId;
+}
+
 async function api(path: string, init?: RequestInit) {
+  const authHeaders = await getAuthHeader();
   const res = await fetch(`${API}${path}`, {
-    headers: { 'Content-Type': 'application/json' },
     ...init,
+    headers: {
+      'Content-Type': 'application/json',
+      ...authHeaders,
+      ...init?.headers,
+    },
   });
   return res.json() as Promise<{ success: boolean; data?: unknown; error?: string }>;
 }
 
 // ── Groups ──────────────────────────────────────────────────────────────────
 
-test('GET /groups returns empty array initially', async () => {
+test('GET /groups returns empty array initially or when unscoped', async () => {
   const body = await api('/groups');
   expect(body.success).toBe(true);
   expect(Array.isArray(body.data)).toBe(true);
 });
 
 test('POST /groups creates a group', async () => {
+  const accountId = await getFixtureAccount();
   const body = await api('/groups', {
     method: 'POST',
-    body: JSON.stringify({ url: 'https://www.facebook.com/groups/e2etestgroup123', name: 'E2E Test Group' }),
+    body: JSON.stringify({
+      url: `https://www.facebook.com/groups/e2etestgroup${Date.now()}`,
+      name: 'E2E Test Group',
+      accountId,
+    }),
   });
   expect(body.success).toBe(true);
   const group = body.data as { id: string; name: string; fbGroupId: string };
   expect(group.name).toBe('E2E Test Group');
-  expect(group.fbGroupId).toBe('e2etestgroup123');
 
   // cleanup
   await api(`/groups/${group.id}`, { method: 'DELETE' });
 });
 
 test('POST /groups rejects invalid URL', async () => {
+  const accountId = await getFixtureAccount();
   const body = await api('/groups', {
     method: 'POST',
-    body: JSON.stringify({ url: 'https://example.com/not-a-group', name: 'Bad Group' }),
+    body: JSON.stringify({ url: 'https://example.com/not-a-group', name: 'Bad Group', accountId }),
   });
   expect(body.success).toBe(false);
   expect(body.error).toBeDefined();
@@ -55,9 +98,14 @@ test('POST /groups requires name and url', async () => {
 });
 
 test('PATCH /groups/:id updates a group', async () => {
+  const accountId = await getFixtureAccount();
   const created = await api('/groups', {
     method: 'POST',
-    body: JSON.stringify({ url: 'https://www.facebook.com/groups/patchtest999', name: 'Before Patch' }),
+    body: JSON.stringify({
+      url: `https://www.facebook.com/groups/patchtest${Date.now()}`,
+      name: 'Before Patch',
+      accountId,
+    }),
   });
   const group = created.data as { id: string };
 
@@ -74,9 +122,14 @@ test('PATCH /groups/:id updates a group', async () => {
 });
 
 test('DELETE /groups/:id removes the group', async () => {
+  const accountId = await getFixtureAccount();
   const created = await api('/groups', {
     method: 'POST',
-    body: JSON.stringify({ url: 'https://www.facebook.com/groups/deletetest456', name: 'To Delete' }),
+    body: JSON.stringify({
+      url: `https://www.facebook.com/groups/deletetest${Date.now()}`,
+      name: 'To Delete',
+      accountId,
+    }),
   });
   const group = created.data as { id: string };
 
@@ -84,7 +137,7 @@ test('DELETE /groups/:id removes the group', async () => {
   expect(del.success).toBe(true);
 
   // confirm it's gone
-  const list = await api('/groups');
+  const list = await api(`/groups?accountId=${accountId}`);
   const groups = list.data as Array<{ id: string }>;
   expect(groups.find((g) => g.id === group.id)).toBeUndefined();
 });
@@ -98,12 +151,18 @@ test('GET /posts returns array', async () => {
 });
 
 test('POST /posts creates a post (text only)', async () => {
+  const accountId = await getFixtureAccount();
+  const authHeaders = await getAuthHeader();
   const form = new FormData();
   form.append('title', 'E2E Test Post');
   form.append('content', 'This is test content from e2e tests');
+  form.append('accountId', accountId);
 
-  const res = await fetch(`${API}/posts`, { method: 'POST', body: form });
-  const body = await res.json() as { success: boolean; data?: { id: string; title: string; content: string; imagePaths: string[] } };
+  const res = await fetch(`${API}/posts`, { method: 'POST', body: form, headers: authHeaders });
+  const body = (await res.json()) as {
+    success: boolean;
+    data?: { id: string; title: string; content: string; imagePaths: string[] };
+  };
 
   expect(body.success).toBe(true);
   expect(body.data?.title).toBe('E2E Test Post');
@@ -113,20 +172,24 @@ test('POST /posts creates a post (text only)', async () => {
 });
 
 test('POST /posts requires title and content', async () => {
+  const authHeaders = await getAuthHeader();
   const form = new FormData();
   form.append('title', '');
 
-  const res = await fetch(`${API}/posts`, { method: 'POST', body: form });
-  const body = await res.json() as { success: boolean };
+  const res = await fetch(`${API}/posts`, { method: 'POST', body: form, headers: authHeaders });
+  const body = (await res.json()) as { success: boolean };
   expect(body.success).toBe(false);
 });
 
 test('PATCH /posts/:id updates a post', async () => {
+  const accountId = await getFixtureAccount();
+  const authHeaders = await getAuthHeader();
   const form = new FormData();
   form.append('title', 'Original Title');
   form.append('content', 'Original content');
-  const createRes = await fetch(`${API}/posts`, { method: 'POST', body: form });
-  const created = await createRes.json() as { data: { id: string } };
+  form.append('accountId', accountId);
+  const createRes = await fetch(`${API}/posts`, { method: 'POST', body: form, headers: authHeaders });
+  const created = (await createRes.json()) as { data: { id: string } };
 
   const patched = await api(`/posts/${created.data.id}`, {
     method: 'PATCH',

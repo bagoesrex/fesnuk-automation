@@ -108,6 +108,19 @@ export async function deleteAccount(req: Request, res: Response, next: NextFunct
     // delete session file
     const abs = path.resolve(config.sessionsDir, '..', account.sessionPath);
     await fs.rm(abs, { force: true });
+    // cleanup post images
+    const posts = await db.post.findMany({ where: { accountId: id } });
+    for (const post of posts) {
+      try {
+        const paths = JSON.parse(post.imagePaths) as string[];
+        for (const rel of paths) {
+          const fileAbs = path.resolve(config.uploadsDir, '..', rel);
+          await fs.rm(fileAbs, { force: true });
+        }
+      } catch {
+        // ignore parse error
+      }
+    }
     // cleanup inactive schedules and groups
     const schedules = await db.schedule.findMany({ where: { accountId: id }, select: { id: true } });
     const scheduleIds = schedules.map((s) => s.id);

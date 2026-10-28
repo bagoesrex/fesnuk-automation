@@ -42,28 +42,29 @@ export function AccountProvider({ children }: { children: ReactNode }) {
       const data = await accountsService.list();
       setAccounts(data);
 
-      setSelectedAccountIdState((current) => {
-        // If current selected ID still valid, keep it
-        if (current && data.some((a) => a.id === current)) {
-          return current;
-        }
-        // Otherwise pick first active account or first available
-        const fallback = data.find((a) => a.isActive)?.id ?? data[0]?.id ?? null;
-        if (fallback) {
-          try {
-            localStorage.setItem(STORAGE_KEY, fallback);
-          } catch {
-            // ignore
-          }
+      let savedId: string | null = null;
+      try {
+        savedId = localStorage.getItem(STORAGE_KEY);
+      } catch {
+        // ignore
+      }
+
+      const nextId =
+        savedId && data.some((a) => a.id === savedId)
+          ? savedId
+          : (data.find((a) => a.isActive)?.id ?? data[0]?.id ?? null);
+
+      try {
+        if (nextId) {
+          localStorage.setItem(STORAGE_KEY, nextId);
         } else {
-          try {
-            localStorage.removeItem(STORAGE_KEY);
-          } catch {
-            // ignore
-          }
+          localStorage.removeItem(STORAGE_KEY);
         }
-        return fallback;
-      });
+      } catch {
+        // ignore
+      }
+
+      setSelectedAccountIdState(nextId);
     } catch (err) {
       console.error('Failed to load accounts for context:', err);
     } finally {

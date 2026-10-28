@@ -7,8 +7,11 @@ import { config } from '../config/env.ts';
 export async function listPosts(req: Request, res: Response, next: NextFunction) {
   try {
     const { accountId } = req.query as { accountId?: string };
-    const where = accountId ? { accountId } : {};
-    const posts = await db.post.findMany({ where, orderBy: { createdAt: 'desc' } });
+    if (!accountId) {
+      res.json({ success: true, data: [] });
+      return;
+    }
+    const posts = await db.post.findMany({ where: { accountId }, orderBy: { createdAt: 'desc' } });
     const parsed = posts.map((p) => ({ ...p, imagePaths: JSON.parse(p.imagePaths) as string[] }));
     res.json({ success: true, data: parsed });
   } catch (err) {

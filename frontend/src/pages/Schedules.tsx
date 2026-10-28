@@ -6,6 +6,7 @@ import { postsService } from '../services/posts.ts';
 import { useAccount } from '../context/AccountContext.tsx';
 import { Modal } from '../components/Modal.tsx';
 import { Badge } from '../components/Badge.tsx';
+import { NoAccountsCard } from '../components/NoAccountsCard.tsx';
 import type { Schedule } from '../types/index.ts';
 import {
   Plus,
@@ -23,7 +24,7 @@ const statusVariant: Record<string, 'green' | 'red' | 'yellow' | 'gray' | 'blue'
 };
 
 export default function Schedules() {
-  const { selectedAccountId, selectedAccount } = useAccount();
+  const { selectedAccountId, selectedAccount, accounts, loading: loadingAccounts } = useAccount();
   const { data: schedules, loading, refetch } = useAsync(
     () => schedulesService.list(selectedAccountId ?? undefined),
     [selectedAccountId]
@@ -49,6 +50,20 @@ export default function Schedules() {
     delayMinSec: 300,
     delayMaxSec: 900,
   });
+
+  function openAddModal() {
+    setForm({
+      name: '',
+      cronExpression: '0 9 * * 1-5',
+      accountId: selectedAccountId ?? '',
+      postId: '',
+      groupIds: [],
+      delayMinSec: 300,
+      delayMaxSec: 900,
+    });
+    setErr('');
+    setShowAdd(true);
+  }
 
   function toggleGroup(id: string) {
     setForm((f) => ({
@@ -137,14 +152,17 @@ export default function Schedules() {
         </div>
         {!showAdd && (
           <button
-            onClick={() => setShowAdd(true)}
-            className="inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-semibold hover:bg-blue-700 shadow-xs transition-colors w-full sm:w-auto self-start sm:self-auto cursor-pointer"
+            onClick={openAddModal}
+            disabled={!selectedAccountId}
+            className="inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-semibold hover:bg-blue-700 shadow-xs transition-colors w-full sm:w-auto self-start sm:self-auto cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Plus size={16} weight="bold" />
             New Schedule
           </button>
         )}
       </div>
+
+      {!loadingAccounts && accounts.length === 0 && <NoAccountsCard />}
 
       {/* Main Table */}
       <div className="bg-white rounded-2xl border border-zinc-200/80 overflow-hidden shadow-xs">

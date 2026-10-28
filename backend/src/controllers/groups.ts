@@ -10,8 +10,11 @@ function extractGroupId(url: string): string | null {
 export async function listGroups(req: Request, res: Response, next: NextFunction) {
   try {
     const { accountId } = req.query as { accountId?: string };
-    const where = accountId ? { accountId } : {};
-    const groups = await db.group.findMany({ where, orderBy: { createdAt: 'desc' } });
+    if (!accountId) {
+      res.json({ success: true, data: [] });
+      return;
+    }
+    const groups = await db.group.findMany({ where: { accountId }, orderBy: { createdAt: 'desc' } });
     res.json({ success: true, data: groups });
   } catch (err) {
     next(err);

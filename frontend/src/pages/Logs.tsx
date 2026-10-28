@@ -3,10 +3,11 @@ import { useAsync } from '../hooks/useAsync.ts';
 import { logsService } from '../services/logs.ts';
 import { useAccount } from '../context/AccountContext.tsx';
 import { Badge } from '../components/Badge.tsx';
+import { NoAccountsCard } from '../components/NoAccountsCard.tsx';
 import { ArrowsClockwise, CaretLeft, CaretRight } from '@phosphor-icons/react';
 
 export default function Logs() {
-  const { selectedAccountId } = useAccount();
+  const { selectedAccountId, accounts, loading: loadingAccounts } = useAccount();
   const [page, setPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState('');
 
@@ -50,6 +51,8 @@ export default function Logs() {
           </button>
         </div>
       </div>
+
+      {!loadingAccounts && accounts.length === 0 && <NoAccountsCard />}
 
       {/* Main Table */}
       <div className="bg-white rounded-2xl border border-zinc-200/80 overflow-hidden shadow-xs">

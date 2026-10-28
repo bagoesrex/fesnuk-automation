@@ -2,7 +2,7 @@ import { describe, it, expect, beforeAll, afterAll } from "bun:test";
 import db from "../src/config/db.ts";
 import { createGroup, listGroups } from "../src/controllers/groups.ts";
 import { createPost, listPosts } from "../src/controllers/posts.ts";
-import { createSchedule, listSchedules } from "../src/controllers/schedules.ts";
+import { createSchedule, listSchedules, updateSchedule } from "../src/controllers/schedules.ts";
 import { listLogs, getStats } from "../src/controllers/logs.ts";
 import type { Request, Response } from "express";
 
@@ -132,28 +132,104 @@ describe("Multi-Account Data Isolation", () => {
   });
 
   it("rejects cross-account association when creating a schedule", async () => {
-    // Fetch group and post for account B
+    // Fetch group and post for account B and A
+    const groupA = await db.group.findFirst({ where: { accountId: accountAId } });
     const groupB = await db.group.findFirst({ where: { accountId: accountBId } });
     const postA = await db.post.findFirst({ where: { accountId: accountAId } });
+    const postB = await db.post.findFirst({ where: { accountId: accountBId } });
 
     // Attempting to create schedule for Account A with Group B
-    const crossRes = mockResponse();
+    const crossGroupRes = mockResponse();
     await createSchedule(
       {
         body: {
-          name: "Cross Schedule",
+          name: "Cross Group Schedule",
           cronExpression: "0 9 * * *",
           accountId: accountAId,
           postId: postA!.id,
           groupIds: [groupB!.id],
         },
       } as Request,
-      crossRes,
+      crossGroupRes,
       () => {}
     );
 
-    expect(crossRes._status).toBe(422);
-    expect(crossRes._json.code).toBe("CROSS_ACCOUNT_ASSOCIATION_FORBIDDEN");
+    expect(crossGroupRes._status).toBe(422);
+    expect(crossGroupRes._json.code).toBe("CROSS_ACCOUNT_ASSOCIATION_FORBIDDEN");
+
+    // Attempting to create schedule for Account A with Post B
+    const crossPostRes = mockResponse();
+    await createSchedule(
+      {
+        body: {
+          name: "Cross Post Schedule",
+          cronExpression: "0 9 * * *",
+          accountId: accountAId,
+          postId: postB!.id,
+          groupIds: [groupA!.id],
+        },
+      } as Request,
+      crossPostRes,
+      () => {}
+    );
+
+    expect(crossPostRes._status).toBe(422);
+    expect(crossPostRes._json.code).toBe("CROSS_ACCOUNT_ASSOCIATION_FORBIDDEN");
+
+    // Valid schedule for Account A
+    const validRes = mockResponse();
+    await createSchedule(
+      {
+        body: {
+          name: "Valid Schedule A",
+          cronExpression: "0 9 * * *",
+          accountId: accountAId,
+          postId: postA!.id,
+          groupIds: [groupA!.id],
+        },
+      } as Request,
+      validRes,
+      () => {}
+    );
+    expect(validRes._status).toBe(201);
+    const scheduleAId = validRes._json.data.id;
+
+    // Attempting to update schedule A to include Group B
+    const updateCrossRes = mockResponse();
+    await updateSchedule(
+      {
+        params: { id: scheduleAId },
+        body: {
+          groupIds: [groupB!.id],
+        },
+      } as unknown as Request,
+      updateCrossRes,
+      () => {}
+    );
+    expect(updateCrossRes._status).toBe(422);
+    expect(updateCrossRes._json.code).toBe("CROSS_ACCOUNT_ASSOCIATION_FORBIDDEN");
+  });
+
+  it("returns empty data when accountId is missing, preventing multi-tenant leakage", async () => {
+    const emptyGroups = mockResponse();
+    await listGroups({ query: {} } as Request, emptyGroups, () => {});
+    expect(emptyGroups._json.data).toEqual([]);
+
+    const emptyPosts = mockResponse();
+    await listPosts({ query: {} } as unknown as Request, emptyPosts, () => {});
+    expect(emptyPosts._json.data).toEqual([]);
+
+    const emptySchedules = mockResponse();
+    await listSchedules({ query: {} } as Request, emptySchedules, () => {});
+    expect(emptySchedules._json.data).toEqual([]);
+
+    const emptyLogs = mockResponse();
+    await listLogs({ query: {} } as Request, emptyLogs, () => {});
+    expect(emptyLogs._json.data.logs).toEqual([]);
+
+    const emptyStats = mockResponse();
+    await getStats({ query: {} } as Request, emptyStats, () => {});
+    expect(emptyStats._json.data.totalPosts).toBe(0);
   });
 
   it("filters stats and logs by accountId", async () => {

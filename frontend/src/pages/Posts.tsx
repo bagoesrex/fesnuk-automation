@@ -4,6 +4,7 @@ import { postsService } from '../services/posts.ts';
 import { useAccount } from '../context/AccountContext.tsx';
 import { Modal } from '../components/Modal.tsx';
 import { Badge } from '../components/Badge.tsx';
+import { NoAccountsCard } from '../components/NoAccountsCard.tsx';
 import type { Post } from '../types/index.ts';
 import {
   Plus,
@@ -22,7 +23,7 @@ function getImageUrl(relPath: string) {
 }
 
 export default function Posts() {
-  const { selectedAccountId } = useAccount();
+  const { selectedAccountId, accounts, loading: loadingAccounts } = useAccount();
   const { data: posts, loading, refetch } = useAsync(
     () => postsService.list(selectedAccountId ?? undefined),
     [selectedAccountId]
@@ -127,12 +128,15 @@ export default function Posts() {
             setShowAdd(true);
             setErr('');
           }}
-          className="inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-semibold hover:bg-blue-700 shadow-xs transition-colors w-full sm:w-auto self-start sm:self-auto cursor-pointer"
+          disabled={!selectedAccountId}
+          className="inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-semibold hover:bg-blue-700 shadow-xs transition-colors w-full sm:w-auto self-start sm:self-auto cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <Plus size={16} weight="bold" />
           Create Post
         </button>
       </div>
+
+      {!loadingAccounts && accounts.length === 0 && <NoAccountsCard />}
 
       {/* Posts List */}
       {loading ? (

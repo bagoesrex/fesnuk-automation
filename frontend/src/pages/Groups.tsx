@@ -4,6 +4,7 @@ import { groupsService } from '../services/groups.ts';
 import { useAccount } from '../context/AccountContext.tsx';
 import { Modal } from '../components/Modal.tsx';
 import { Badge } from '../components/Badge.tsx';
+import { NoAccountsCard } from '../components/NoAccountsCard.tsx';
 import type { Group } from '../types/index.ts';
 import {
   ArrowsClockwise,
@@ -15,7 +16,7 @@ import {
 } from '@phosphor-icons/react';
 
 export default function Groups() {
-  const { selectedAccountId, accounts } = useAccount();
+  const { selectedAccountId, selectedAccount, accounts, loading: loadingAccounts } = useAccount();
   const { data: groups, loading, refetch } = useAsync(
     () => groupsService.list(selectedAccountId ?? undefined),
     [selectedAccountId]
@@ -27,7 +28,6 @@ export default function Groups() {
   const [saving, setSaving] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [syncResult, setSyncResult] = useState<{ added: number; skipped: number; total: number } | null>(null);
-  const [syncAccountId, setSyncAccountId] = useState(selectedAccountId ?? '');
   const [err, setErr] = useState('');
 
   async function handleAdd(e: React.FormEvent) {
@@ -52,12 +52,15 @@ export default function Groups() {
 
   async function handleSync(e: React.FormEvent) {
     e.preventDefault();
-    if (!syncAccountId) { setErr('Select an account'); return; }
+    if (!selectedAccountId) {
+      setErr('Please select or add an account first');
+      return;
+    }
     setSyncing(true);
     setErr('');
     setSyncResult(null);
     try {
-      const result = await groupsService.sync(syncAccountId);
+      const result = await groupsService.sync(selectedAccountId);
       setSyncResult(result);
       await refetch();
     } catch (e) {
@@ -82,8 +85,6 @@ export default function Groups() {
     }
   }
 
-  const activeAccounts = accounts?.filter((a) => a.isActive) ?? [];
-
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-6">
       {/* Header */}
@@ -96,21 +97,25 @@ export default function Groups() {
         </div>
         <div className="flex flex-wrap items-center gap-2.5 w-full sm:w-auto">
           <button
-            onClick={() => { setShowSync(true); setSyncAccountId(selectedAccountId ?? ''); setSyncResult(null); setErr(''); }}
-            className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-emerald-600 text-white rounded-xl text-sm font-semibold hover:bg-emerald-700 shadow-xs transition-colors cursor-pointer"
+            onClick={() => { setShowSync(true); setSyncResult(null); setErr(''); }}
+            disabled={!selectedAccountId}
+            className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-emerald-600 text-white rounded-xl text-sm font-semibold hover:bg-emerald-700 shadow-xs transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <ArrowsClockwise size={16} weight="bold" />
             Sync from Facebook
           </button>
           <button
             onClick={() => { setShowAdd(true); setErr(''); }}
-            className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-semibold hover:bg-blue-700 shadow-xs transition-colors cursor-pointer"
+            disabled={!selectedAccountId}
+            className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-semibold hover:bg-blue-700 shadow-xs transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Plus size={16} weight="bold" />
             Add Manually
           </button>
         </div>
       </div>
+
+      {!loadingAccounts && accounts.length === 0 && <NoAccountsCard />}
 
       {/* Main Table */}
       <div className="bg-white rounded-2xl border border-zinc-200/80 overflow-hidden shadow-xs">
@@ -202,26 +207,14 @@ export default function Groups() {
 
             <div>
               <label className="block text-xs font-semibold text-zinc-700 mb-1.5 uppercase tracking-wider">
-                Select Account
+                Target Account
               </label>
-              {activeAccounts.length === 0 ? (
-                <div className="flex items-center gap-2 p-3 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-700">
-                  <WarningCircle size={16} />
-                  No active accounts found. Set up a session first.
-                </div>
-              ) : (
-                <select
-                  value={syncAccountId}
-                  onChange={(e) => setSyncAccountId(e.target.value)}
-                  className="input cursor-pointer"
-                  required
-                >
-                  <option value="">Select account...</option>
-                  {activeAccounts.map((a) => (
-                    <option key={a.id} value={a.id}>{a.name}</option>
-                  ))}
-                </select>
-              )}
+              <input
+                type="text"
+                readOnly
+                value={selectedAccount ? selectedAccount.name : 'No account selected'}
+                className="input bg-zinc-50 text-zinc-700 cursor-not-allowed font-medium"
+              />
             </div>
 
             {syncResult && (
@@ -263,7 +256,7 @@ export default function Groups() {
               {!syncResult && (
                 <button
                   type="submit"
-                  disabled={syncing || activeAccounts.length === 0}
+                  disabled={syncing || !selectedAccountId || !selectedAccount?.isActive}
                   className="px-4 py-2 text-xs font-semibold bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 disabled:opacity-50 transition-colors"
                 >
                   {syncing ? 'Syncing...' : 'Start Sync'}
