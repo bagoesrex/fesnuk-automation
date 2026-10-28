@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useAsync } from '../hooks/useAsync.ts';
 import { groupsService } from '../services/groups.ts';
-import { accountsService } from '../services/accounts.ts';
+import { useAccount } from '../context/AccountContext.tsx';
 import { Modal } from '../components/Modal.tsx';
 import { Badge } from '../components/Badge.tsx';
 import type { Group } from '../types/index.ts';
@@ -15,8 +15,11 @@ import {
 } from '@phosphor-icons/react';
 
 export default function Groups() {
-  const { data: groups, loading, refetch } = useAsync(() => groupsService.list(), []);
-  const { data: accounts } = useAsync(() => accountsService.list(), []);
+  const { selectedAccountId, accounts } = useAccount();
+  const { data: groups, loading, refetch } = useAsync(
+    () => groupsService.list(selectedAccountId ?? undefined),
+    [selectedAccountId]
+  );
 
   const [showAdd, setShowAdd] = useState(false);
   const [showSync, setShowSync] = useState(false);
@@ -24,15 +27,19 @@ export default function Groups() {
   const [saving, setSaving] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [syncResult, setSyncResult] = useState<{ added: number; skipped: number; total: number } | null>(null);
-  const [syncAccountId, setSyncAccountId] = useState('');
+  const [syncAccountId, setSyncAccountId] = useState(selectedAccountId ?? '');
   const [err, setErr] = useState('');
 
   async function handleAdd(e: React.FormEvent) {
     e.preventDefault();
+    if (!selectedAccountId) {
+      setErr('Please select or add an account first');
+      return;
+    }
     setSaving(true);
     setErr('');
     try {
-      await groupsService.create(form);
+      await groupsService.create({ ...form, accountId: selectedAccountId });
       setShowAdd(false);
       setForm({ name: '', url: '' });
       await refetch();
@@ -89,7 +96,7 @@ export default function Groups() {
         </div>
         <div className="flex flex-wrap items-center gap-2.5 w-full sm:w-auto">
           <button
-            onClick={() => { setShowSync(true); setSyncResult(null); setErr(''); }}
+            onClick={() => { setShowSync(true); setSyncAccountId(selectedAccountId ?? ''); setSyncResult(null); setErr(''); }}
             className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-emerald-600 text-white rounded-xl text-sm font-semibold hover:bg-emerald-700 shadow-xs transition-colors cursor-pointer"
           >
             <ArrowsClockwise size={16} weight="bold" />

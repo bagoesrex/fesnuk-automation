@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useAsync } from '../hooks/useAsync.ts';
 import { accountsService } from '../services/accounts.ts';
+import { useAccount } from '../context/AccountContext.tsx';
 import { Badge } from '../components/Badge.tsx';
 import {
   Key,
@@ -15,6 +16,7 @@ import {
 } from '@phosphor-icons/react';
 
 export default function Session() {
+  const { refreshAccounts } = useAccount();
   const { data: accounts, loading, refetch } = useAsync(() => accountsService.list(), []);
   const [mode, setMode] = useState<'browser' | 'import'>('browser');
   const [step, setStep] = useState<'idle' | 'waiting' | 'done'>('idle');
@@ -51,6 +53,7 @@ export default function Session() {
       setName('');
       setProxyUrl('');
       await refetch();
+      await refreshAccounts();
     } catch (e) {
       setErr(e instanceof Error ? e.message : 'Failed');
     } finally {
@@ -78,6 +81,7 @@ export default function Session() {
       setProxyUrl('');
       setSessionJson('');
       await refetch();
+      await refreshAccounts();
     } catch (e) {
       setErr(e instanceof Error ? e.message : 'Failed to import session');
     } finally {
@@ -113,6 +117,7 @@ export default function Session() {
     try {
       await accountsService.delete(id);
       await refetch();
+      await refreshAccounts();
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Failed to delete account';
       setDeleteErr(msg);

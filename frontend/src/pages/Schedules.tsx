@@ -3,7 +3,7 @@ import { useAsync } from '../hooks/useAsync.ts';
 import { schedulesService } from '../services/schedules.ts';
 import { groupsService } from '../services/groups.ts';
 import { postsService } from '../services/posts.ts';
-import { accountsService } from '../services/accounts.ts';
+import { useAccount } from '../context/AccountContext.tsx';
 import { Modal } from '../components/Modal.tsx';
 import { Badge } from '../components/Badge.tsx';
 import type { Schedule } from '../types/index.ts';
@@ -23,10 +23,19 @@ const statusVariant: Record<string, 'green' | 'red' | 'yellow' | 'gray' | 'blue'
 };
 
 export default function Schedules() {
-  const { data: schedules, loading, refetch } = useAsync(() => schedulesService.list(), []);
-  const { data: groups } = useAsync(() => groupsService.list(), []);
-  const { data: posts } = useAsync(() => postsService.list(), []);
-  const { data: accounts } = useAsync(() => accountsService.list(), []);
+  const { selectedAccountId, selectedAccount } = useAccount();
+  const { data: schedules, loading, refetch } = useAsync(
+    () => schedulesService.list(selectedAccountId ?? undefined),
+    [selectedAccountId]
+  );
+  const { data: groups } = useAsync(
+    () => groupsService.list(selectedAccountId ?? undefined),
+    [selectedAccountId]
+  );
+  const { data: posts } = useAsync(
+    () => postsService.list(selectedAccountId ?? undefined),
+    [selectedAccountId]
+  );
   const [showAdd, setShowAdd] = useState(false);
   const [err, setErr] = useState('');
   const [saving, setSaving] = useState(false);
@@ -34,7 +43,7 @@ export default function Schedules() {
   const [form, setForm] = useState({
     name: '',
     cronExpression: '0 9 * * 1-5',
-    accountId: '',
+    accountId: selectedAccountId ?? '',
     postId: '',
     groupIds: [] as string[],
     delayMinSec: 300,
@@ -66,16 +75,19 @@ export default function Schedules() {
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
+    const accountId = selectedAccountId || form.accountId;
+    if (!accountId) { setErr('Please select an account first'); return; }
+    if (!form.postId) { setErr('Please select a post'); return; }
     if (!form.groupIds.length) { setErr('Select at least one group'); return; }
     setSaving(true);
     setErr('');
     try {
-      await schedulesService.create(form);
+      await schedulesService.create({ ...form, accountId });
       setShowAdd(false);
       setForm({
         name: '',
         cronExpression: '0 9 * * 1-5',
-        accountId: '',
+        accountId: selectedAccountId ?? '',
         postId: '',
         groupIds: [],
         delayMinSec: 300,
@@ -250,17 +262,12 @@ export default function Schedules() {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Field label="Account">
-                <select
-                  value={form.accountId}
-                  onChange={(e) => setForm((f) => ({ ...f, accountId: e.target.value }))}
-                  className="input cursor-pointer"
-                  required
-                >
-                  <option value="">Select account...</option>
-                  {accounts?.map((a) => (
-                    <option key={a.id} value={a.id}>{a.name}</option>
-                  ))}
-                </select>
+                <input
+                  type="text"
+                  readOnly
+                  value={selectedAccount ? selectedAccount.name : 'No account selected'}
+                  className="input bg-zinc-50 text-zinc-700 cursor-not-allowed font-medium"
+                />
               </Field>
 
               <Field label="Post Content">

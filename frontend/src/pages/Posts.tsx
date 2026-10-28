@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { useAsync } from '../hooks/useAsync.ts';
 import { postsService } from '../services/posts.ts';
+import { useAccount } from '../context/AccountContext.tsx';
 import { Modal } from '../components/Modal.tsx';
 import { Badge } from '../components/Badge.tsx';
 import type { Post } from '../types/index.ts';
@@ -21,7 +22,11 @@ function getImageUrl(relPath: string) {
 }
 
 export default function Posts() {
-  const { data: posts, loading, refetch } = useAsync(() => postsService.list(), []);
+  const { selectedAccountId } = useAccount();
+  const { data: posts, loading, refetch } = useAsync(
+    () => postsService.list(selectedAccountId ?? undefined),
+    [selectedAccountId]
+  );
   const [showAdd, setShowAdd] = useState(false);
   const [form, setForm] = useState({ title: '', content: '' });
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
@@ -61,12 +66,17 @@ export default function Posts() {
 
   async function handleAdd(e: React.FormEvent) {
     e.preventDefault();
+    if (!selectedAccountId) {
+      setErr('Please select or add an account first');
+      return;
+    }
     setSaving(true);
     setErr('');
     try {
       const fd = new FormData();
       fd.append('title', form.title);
       fd.append('content', form.content);
+      fd.append('accountId', selectedAccountId);
       selectedFiles.forEach((f) => fd.append('images', f));
       await postsService.create(fd);
       handleCloseModal();

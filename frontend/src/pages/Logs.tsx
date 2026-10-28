@@ -1,16 +1,18 @@
 import { useState } from 'react';
 import { useAsync } from '../hooks/useAsync.ts';
 import { logsService } from '../services/logs.ts';
+import { useAccount } from '../context/AccountContext.tsx';
 import { Badge } from '../components/Badge.tsx';
 import { ArrowsClockwise, CaretLeft, CaretRight } from '@phosphor-icons/react';
 
 export default function Logs() {
+  const { selectedAccountId } = useAccount();
   const [page, setPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState('');
 
   const { data, loading, refetch } = useAsync(
-    () => logsService.list({ status: statusFilter || undefined, page }),
-    [page, statusFilter]
+    () => logsService.list({ status: statusFilter || undefined, page, accountId: selectedAccountId ?? undefined }),
+    [page, statusFilter, selectedAccountId]
   );
 
   return (
