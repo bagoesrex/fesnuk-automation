@@ -2,7 +2,8 @@ import { api } from './api.ts';
 import type { Schedule } from '../types/index.ts';
 
 export const schedulesService = {
-  list: () => api.get<Schedule[]>('/schedules'),
+  list: (accountId?: string) =>
+    api.get<Schedule[]>(accountId ? `/schedules?accountId=${encodeURIComponent(accountId)}` : '/schedules'),
   create: (data: {
     name: string;
     cronExpression: string;

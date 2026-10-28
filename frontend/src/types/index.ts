@@ -15,6 +15,7 @@ export interface Group {
   fbGroupId: string;
   name: string;
   url: string;
+  accountId: string;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
@@ -25,6 +26,7 @@ export interface Post {
   title: string;
   content: string;
   imagePaths: string[];
+  accountId: string;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
