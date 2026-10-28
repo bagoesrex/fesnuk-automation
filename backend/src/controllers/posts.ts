@@ -4,9 +4,11 @@ import fs from 'fs/promises';
 import path from 'path';
 import { config } from '../config/env.ts';
 
-export async function listPosts(_req: Request, res: Response, next: NextFunction) {
+export async function listPosts(req: Request, res: Response, next: NextFunction) {
   try {
-    const posts = await db.post.findMany({ orderBy: { createdAt: 'desc' } });
+    const { accountId } = req.query as { accountId?: string };
+    const where = accountId ? { accountId } : {};
+    const posts = await db.post.findMany({ where, orderBy: { createdAt: 'desc' } });
     const parsed = posts.map((p) => ({ ...p, imagePaths: JSON.parse(p.imagePaths) as string[] }));
     res.json({ success: true, data: parsed });
   } catch (err) {
@@ -16,9 +18,14 @@ export async function listPosts(_req: Request, res: Response, next: NextFunction
 
 export async function createPost(req: Request, res: Response, next: NextFunction) {
   try {
-    const { title, content } = req.body as { title?: string; content?: string };
-    if (!title?.trim() || !content?.trim()) {
-      res.status(422).json({ success: false, error: 'title and content are required', code: 'VALIDATION_ERROR' });
+    const { title, content, accountId } = req.body as { title?: string; content?: string; accountId?: string };
+    if (!title?.trim() || !content?.trim() || !accountId) {
+      res.status(422).json({ success: false, error: 'title, content, and accountId are required', code: 'VALIDATION_ERROR' });
+      return;
+    }
+    const account = await db.account.findUnique({ where: { id: accountId } });
+    if (!account) {
+      res.status(404).json({ success: false, error: 'Account not found', code: 'NOT_FOUND' });
       return;
     }
     const files = (req.files as Express.Multer.File[] | undefined) ?? [];
@@ -26,7 +33,12 @@ export async function createPost(req: Request, res: Response, next: NextFunction
       path.relative(path.resolve(config.uploadsDir, '..'), f.path).replace(/\\/g, '/')
     );
     const post = await db.post.create({
-      data: { title: title.trim(), content: content.trim(), imagePaths: JSON.stringify(imagePaths) },
+      data: {
+        title: title.trim(),
+        content: content.trim(),
+        imagePaths: JSON.stringify(imagePaths),
+        accountId,
+      },
     });
     res.status(201).json({ success: true, data: { ...post, imagePaths } });
   } catch (err) {

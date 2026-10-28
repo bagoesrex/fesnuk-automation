@@ -2,9 +2,12 @@ import type { Request, Response, NextFunction } from 'express';
 import db from '../config/db.ts';
 import { registerSchedule, unregisterSchedule, triggerSchedule } from '../services/scheduler.ts';
 
-export async function listSchedules(_req: Request, res: Response, next: NextFunction) {
+export async function listSchedules(req: Request, res: Response, next: NextFunction) {
   try {
+    const { accountId } = req.query as { accountId?: string };
+    const where = accountId ? { accountId } : {};
     const schedules = await db.schedule.findMany({
+      where,
       include: { post: true, account: true, scheduleGroups: { include: { group: true }, orderBy: { order: 'asc' } } },
       orderBy: { createdAt: 'desc' },
     });
@@ -29,6 +32,37 @@ export async function createSchedule(req: Request, res: Response, next: NextFunc
 
     if (!name?.trim() || !cronExpression?.trim() || !accountId || !postId || !groupIds?.length) {
       res.status(422).json({ success: false, error: 'name, cronExpression, accountId, postId, and groupIds are required', code: 'VALIDATION_ERROR' });
+      return;
+    }
+
+    const account = await db.account.findUnique({ where: { id: accountId } });
+    if (!account) {
+      res.status(404).json({ success: false, error: 'Account not found', code: 'NOT_FOUND' });
+      return;
+    }
+
+    // Verify post belongs to the account
+    const post = await db.post.findUnique({ where: { id: postId } });
+    if (!post || post.accountId !== accountId) {
+      res.status(422).json({
+        success: false,
+        error: 'The selected post does not belong to this account',
+        code: 'CROSS_ACCOUNT_ASSOCIATION_FORBIDDEN',
+      });
+      return;
+    }
+
+    // Verify all groups belong to the account
+    const groups = await db.group.findMany({
+      where: { id: { in: groupIds } },
+    });
+    const invalidGroups = groups.filter((g) => g.accountId !== accountId);
+    if (groups.length !== groupIds.length || invalidGroups.length > 0) {
+      res.status(422).json({
+        success: false,
+        error: 'One or more selected groups do not belong to this account',
+        code: 'CROSS_ACCOUNT_ASSOCIATION_FORBIDDEN',
+      });
       return;
     }
 
@@ -68,6 +102,19 @@ export async function updateSchedule(req: Request, res: Response, next: NextFunc
     if (current.status === 'RUNNING') {
       res.status(409).json({ success: false, error: 'Cannot edit a running schedule', code: 'SCHEDULE_RUNNING' });
       return;
+    }
+
+    if (groupIds) {
+      const groups = await db.group.findMany({ where: { id: { in: groupIds } } });
+      const invalid = groups.filter((g) => g.accountId !== current.accountId);
+      if (groups.length !== groupIds.length || invalid.length > 0) {
+        res.status(422).json({
+          success: false,
+          error: 'One or more selected groups do not belong to this account',
+          code: 'CROSS_ACCOUNT_ASSOCIATION_FORBIDDEN',
+        });
+        return;
+      }
     }
 
     const updated = await db.schedule.update({

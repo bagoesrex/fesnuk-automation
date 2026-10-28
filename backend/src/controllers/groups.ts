@@ -7,9 +7,11 @@ function extractGroupId(url: string): string | null {
   return match?.[1] ?? null;
 }
 
-export async function listGroups(_req: Request, res: Response, next: NextFunction) {
+export async function listGroups(req: Request, res: Response, next: NextFunction) {
   try {
-    const groups = await db.group.findMany({ orderBy: { createdAt: 'desc' } });
+    const { accountId } = req.query as { accountId?: string };
+    const where = accountId ? { accountId } : {};
+    const groups = await db.group.findMany({ where, orderBy: { createdAt: 'desc' } });
     res.json({ success: true, data: groups });
   } catch (err) {
     next(err);
@@ -18,9 +20,14 @@ export async function listGroups(_req: Request, res: Response, next: NextFunctio
 
 export async function createGroup(req: Request, res: Response, next: NextFunction) {
   try {
-    const { url, name } = req.body as { url?: string; name?: string };
-    if (!url?.trim() || !name?.trim()) {
-      res.status(422).json({ success: false, error: 'url and name are required', code: 'VALIDATION_ERROR' });
+    const { url, name, accountId } = req.body as { url?: string; name?: string; accountId?: string };
+    if (!url?.trim() || !name?.trim() || !accountId) {
+      res.status(422).json({ success: false, error: 'url, name, and accountId are required', code: 'VALIDATION_ERROR' });
+      return;
+    }
+    const account = await db.account.findUnique({ where: { id: accountId } });
+    if (!account) {
+      res.status(404).json({ success: false, error: 'Account not found', code: 'NOT_FOUND' });
       return;
     }
     const fbGroupId = extractGroupId(url.trim());
@@ -28,7 +35,9 @@ export async function createGroup(req: Request, res: Response, next: NextFunctio
       res.status(422).json({ success: false, error: 'Invalid Facebook Group URL', code: 'VALIDATION_ERROR' });
       return;
     }
-    const group = await db.group.create({ data: { fbGroupId, name: name.trim(), url: url.trim() } });
+    const group = await db.group.create({
+      data: { fbGroupId, name: name.trim(), url: url.trim(), accountId },
+    });
     res.status(201).json({ success: true, data: group });
   } catch (err) {
     next(err);
@@ -76,7 +85,7 @@ export async function syncGroups(req: Request, res: Response, next: NextFunction
       res.status(404).json({ success: false, error: 'Account not found', code: 'NOT_FOUND' });
       return;
     }
-    const result = await syncGroupsFromFacebook(account.sessionPath, account.proxyUrl);
+    const result = await syncGroupsFromFacebook(accountId, account.sessionPath, account.proxyUrl);
     res.json({ success: true, data: result });
   } catch (err) {
     next(err);

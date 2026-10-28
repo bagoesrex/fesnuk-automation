@@ -11,6 +11,7 @@ interface ScrapedGroup {
 }
 
 export async function syncGroupsFromFacebook(
+  accountId: string,
   sessionPath: string,
   proxyUrl?: string | null
 ): Promise<{ added: number; skipped: number; total: number; groups: ScrapedGroup[] }> {
@@ -35,14 +36,16 @@ export async function syncGroupsFromFacebook(
     let added = 0;
     let skipped = 0;
     for (const g of scraped) {
-      const existing = await db.group.findUnique({ where: { fbGroupId: g.fbGroupId } });
+      const existing = await db.group.findUnique({
+        where: { accountId_fbGroupId: { accountId, fbGroupId: g.fbGroupId } },
+      });
       if (existing) {
         if (existing.name !== g.name) {
           await db.group.update({ where: { id: existing.id }, data: { name: g.name } });
         }
         skipped++;
       } else {
-        await db.group.create({ data: g });
+        await db.group.create({ data: { ...g, accountId } });
         added++;
       }
     }
