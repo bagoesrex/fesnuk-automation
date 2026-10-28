@@ -26,24 +26,27 @@ fesnuk-automation/
 │   ├── prisma/schema.prisma   # Source of truth for DB schema
 │   ├── src/
 │   │   ├── config/            # Env, db client initialization
-│   │   ├── controllers/       # Thin handlers — delegate to services
+│   │   ├── controllers/       # Handlers with multi-account validation
 │   │   ├── services/
 │   │   │   ├── scheduler.ts   # node-cron registration & teardown
 │   │   │   ├── poster.ts      # Playwright posting logic per group
-│   │   │   └── session.ts     # Session save/load/validate
+│   │   │   ├── session.ts     # Session save/load/validate
+│   │   │   └── groupSync.ts   # Scraping & upserting groups per account
 │   │   ├── routes/            # Express router — one file per resource
-│   │   ├── middlewares/       # Error handler, multer upload, validation
-│   │   ├── utils/             # delay(), randomInt(), logger (Winston)
+│   │   ├── middlewares/       # Error handler, multer upload, requireAuth
+│   │   ├── utils/             # delay(), randomInt(), logger (Winston), auth
 │   │   └── index.ts           # App bootstrap (Express + cron init)
 │   ├── sessions/              # Saved browser session JSON files (gitignored)
 │   ├── uploads/               # User-uploaded images (gitignored)
+│   ├── tests/                 # Integration tests (e.g. account-isolation.test.ts)
 │   └── logs/                  # Winston log files (gitignored)
 └── frontend/                  # React + Vite + Tailwind CSS dashboard
     └── src/
-        ├── components/        # Reusable UI (Button, Table, Modal, etc.)
-        ├── pages/             # One component per route
+        ├── components/        # UI components (Topbar, Sidebar, Modal, Badge, etc.)
+        ├── context/           # Global React state (AccountContext.tsx)
+        ├── pages/             # One component per route (scoped to active account)
         ├── services/          # fetch() wrappers for each API resource
-        ├── hooks/             # Custom React hooks (useGroups, usePosts, etc.)
+        ├── hooks/             # Custom React hooks (useAccount, useAsync)
         └── types/             # Shared TypeScript interfaces matching API shapes
 ```
 
@@ -163,6 +166,12 @@ Rules:
 5. **Stealth plugin** is applied once at browser launch, not per context.
 
 6. **Image uploads** — Multer saves files to `backend/uploads/<uuid>.<ext>`. `imagePaths` in DB stores paths relative to `backend/` (e.g. `uploads/abc.jpg`). Playwright uses absolute paths when calling `setInputFiles`.
+
+7. **Multi-Account Data Isolation** — All `Group`, `Post`, and `Schedule` models are strictly owned by an `Account`.
+   - `Group` uses a compound unique constraint `@@unique([accountId, fbGroupId])` so multiple Facebook accounts can join the same group.
+   - Resource listing endpoints (`/groups`, `/posts`, `/schedules`, `/logs`, `/logs/stats`) strictly require an `accountId` query parameter and return empty arrays if omitted, preventing multi-tenant leakage.
+   - Schedules enforce `CROSS_ACCOUNT_ASSOCIATION_FORBIDDEN` if a user attempts to associate posts or groups from a foreign account.
+   - Frontend views synchronize via `AccountContext` and the global `Topbar` switcher. Missing accounts render `NoAccountsCard` onboarding.
 
 ---
 

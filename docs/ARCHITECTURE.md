@@ -2,28 +2,34 @@
 
 ## Overview
 
-Facebook Group Auto-Poster is a self-hosted automation system for scheduling and posting content to multiple Facebook Groups using browser automation (Playwright) with a web-based management dashboard.
+Facebook Group Auto-Poster is a self-hosted automation system for scheduling and posting content to multiple Facebook Groups using anti-detection browser automation (Playwright) with a web-based React management dashboard.
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │                        User Browser                             │
 │                    React Dashboard (Vite)                       │
-│         Groups │ Posts │ Schedules │ Logs │ Session Setup       │
+│  ┌───────────────────────────────────────────────────────────┐  │
+│  │ Sticky Topbar: Account Switcher │ Proxy Badge │ Auth Status│ │
+│  └───────────────────────────────────────────────────────────┘  │
+│       Groups │ Posts │ Schedules │ Logs │ Accounts / Session    │
+│            (All views strictly scoped to active account)        │
 └───────────────────────────┬─────────────────────────────────────┘
-                            │ HTTP REST API
+                            │ HTTP REST API (JWT Bearer Auth)
 ┌───────────────────────────▼─────────────────────────────────────┐
 │                    Express.js Backend                           │
 │  ┌─────────────┐  ┌──────────────┐  ┌───────────────────────┐  │
 │  │  REST API   │  │  Scheduler   │  │   Session Manager     │  │
 │  │  /api/v1/*  │  │  node-cron   │  │  Playwright cookies   │  │
+│  │ (Auth Check)│  │ (Per Account)│  │ (Export/Import/Proxy) │  │
 │  └──────┬──────┘  └──────┬───────┘  └──────────┬────────────┘  │
 │         │                │                      │               │
 │  ┌──────▼──────────────────▼──────┐  ┌──────────▼────────────┐  │
 │  │         Prisma ORM             │  │   Posting Engine      │  │
-│  │         SQLite DB              │  │   Playwright + Stealth│  │
+│  │      SQLite Database           │  │ Playwright + Stealth  │  │
+│  │  (Multi-Account Data Isolated) │  │ (WebGL/WebRTC Spoof)  │  │
 │  └────────────────────────────────┘  └───────────┬───────────┘  │
 └──────────────────────────────────────────────────┼─────────────┘
-                                                   │ Browser Automation
+                                                   │ Browser Automation (via Proxy if set)
                                         ┌──────────▼──────────┐
                                         │     Facebook.com     │
                                         │   (Group Posting)    │
@@ -34,117 +40,130 @@ Facebook Group Auto-Poster is a self-hosted automation system for scheduling and
 
 | Layer       | Technology                              | Purpose                                    |
 |-------------|-----------------------------------------|--------------------------------------------|
-| Runtime     | Bun 1.x                                 | JavaScript runtime + package manager + native TypeScript |
-| Language    | TypeScript                              | Type safety across backend & frontend      |
+| Runtime     | Bun 1.x                                 | Fast JavaScript runtime & package manager  |
+| Language    | TypeScript                              | Strict type safety across backend & frontend|
 | Backend     | Express.js                              | REST API server                            |
-| Frontend    | React + Vite                            | Web dashboard SPA                          |
-| Styling     | Tailwind CSS                            | Utility-first CSS framework                |
-| Database    | SQLite                                  | Local embedded database                    |
-| ORM         | Prisma                                  | Type-safe database access & migrations     |
-| Browser     | Playwright + playwright-extra           | Browser automation                         |
-| Stealth     | puppeteer-extra-plugin-stealth (ported) | Anti-bot-detection measures                |
-| Scheduler   | node-cron                               | Cron-based job scheduling                  |
-| File Upload | Multer                                  | Handling image uploads                     |
-| Logging     | Winston                                 | Structured application logging             |
+| Frontend    | React 18 + Vite                         | Web dashboard SPA                          |
+| Styling     | Tailwind CSS                            | Responsive modern light UI                 |
+| Database    | SQLite                                  | Local embedded relational database         |
+| ORM         | Prisma                                  | Type-safe queries, migrations & schema     |
+| Browser     | Playwright + playwright-extra           | Anti-detection browser automation          |
+| Stealth     | puppeteer-extra-plugin-stealth (ported) | Bot signature mitigation & canvas spoofing |
+| Scheduler   | node-cron                               | Cron-based schedule runner                 |
+| Security    | JWT + bcryptjs                          | Master password dashboard protection       |
+| File Upload | Multer                                  | Post image attachments                     |
+| Logging     | Winston                                 | Structured logs with DOM snapshot & png dump|
 
 ## Folder Structure
 
 ```
 facebook-automation/
-├── AGENTS.md                  # AI agent instructions
-├── docs/                      # Project documentation
-│   ├── ARCHITECTURE.md
-│   ├── DATABASE.md
-│   ├── API.md
-│   ├── SETUP.md
-│   ├── FEATURES.md
-│   └── POSTING-FLOW.md
+├── AGENTS.md                  # AI agent guidelines & conventions
+├── README.md                  # Project overview & deployment guide
+├── docs/                      # Technical documentation
+│   ├── ARCHITECTURE.md        # System design & architecture (this file)
+│   ├── DATABASE.md            # Prisma models & relation rules
+│   ├── API.md                 # REST API endpoints reference
+│   ├── SETUP.md               # Local & VPS setup instructions
+│   ├── FEATURES.md            # Feature tracker & roadmap
+│   ├── POSTING-FLOW.md        # Detailed browser posting & anti-detection flow
+│   └── MOBILE-PROXY-SETUP.md  # 4G/LTE mobile proxy rotation guide
 │
 ├── backend/                   # Express.js API server
 │   ├── prisma/
-│   │   ├── schema.prisma      # Database schema
-│   │   └── migrations/        # Auto-generated migrations
+│   │   ├── schema.prisma      # Source of truth for database schema
+│   │   └── migrations/        # Prisma schema migrations
 │   ├── src/
-│   │   ├── config/            # App configuration (env, db)
-│   │   ├── controllers/       # Route handler functions
+│   │   ├── config/            # Env configuration & Prisma DB client singleton
+│   │   ├── controllers/       # HTTP controllers with account validation
 │   │   ├── services/
-│   │   │   ├── scheduler.ts   # node-cron job management
-│   │   │   ├── poster.ts      # Playwright posting logic
-│   │   │   └── session.ts     # Cookie/session persistence
-│   │   ├── models/            # Prisma client wrappers
-│   │   ├── routes/            # Express router definitions
-│   │   ├── middlewares/       # Auth, error, upload handlers
-│   │   ├── utils/             # delay, random, logger helpers
-│   │   └── index.ts           # App entry point
-│   ├── sessions/              # Saved browser session files
-│   ├── uploads/               # Uploaded post images
-│   ├── logs/                  # Application log files
+│   │   │   ├── scheduler.ts   # node-cron lifecycle & posting orchestrator
+│   │   │   ├── poster.ts      # Playwright posting engine & stealth logic
+│   │   │   ├── session.ts     # Cookie/storageState persistence & validation
+│   │   │   └── groupSync.ts   # Automated joined group scraping & upsert
+│   │   ├── routes/            # Express routers (/accounts, /groups, etc.)
+│   │   ├── middlewares/       # Auth (JWT), rate limiting, file uploads, errors
+│   │   ├── utils/             # delay, randomInt, logger, password auth
+│   │   └── index.ts           # App bootstrap (Express server + cron runner)
+│   ├── sessions/              # Saved Playwright storageState JSON files
+│   ├── uploads/               # Post image attachments (UUID filenames)
+│   ├── logs/                  # Winston log files and failure screenshots
+│   ├── tests/                 # Integration tests (e.g. account-isolation.test.ts)
 │   ├── package.json
 │   └── tsconfig.json
 │
 └── frontend/                  # React + Vite dashboard
     ├── src/
-    │   ├── components/        # Reusable UI components
+    │   ├── components/        # Topbar, Sidebar, Modal, Badge, NoAccountsCard
+    │   ├── context/           # AccountContext (active account state & switcher)
     │   ├── pages/
-    │   │   ├── Dashboard.tsx  # Overview & stats
-    │   │   ├── Groups.tsx     # Manage target groups
-    │   │   ├── Posts.tsx      # Create/manage post content
-    │   │   ├── Schedules.tsx  # Cron schedule management
-    │   │   └── Logs.tsx       # Posting history & logs
-    │   ├── services/          # API client (fetch wrappers)
-    │   ├── hooks/             # Custom React hooks
-    │   ├── types/             # Shared TypeScript types
-    │   └── App.tsx
+    │   │   ├── Dashboard.tsx  # Aggregate stats & quick run status
+    │   │   ├── Groups.tsx     # Account-scoped target groups & auto-sync
+    │   │   ├── Posts.tsx      # Post templates & image upload manager
+    │   │   ├── Schedules.tsx  # Cron job schedules & delay configuration
+    │   │   ├── Logs.tsx       # Audit trail, diagnostics, error inspect
+    │   │   ├── Session.tsx    # Multi-account management & session import/export
+    │   │   └── Login.tsx      # Master admin password login screen
+    │   ├── services/          # API client fetch wrappers (injects token & accountId)
+    │   ├── hooks/             # Custom React hooks (useAccount, useAsync)
+    │   ├── types/             # Shared TypeScript API models
+    │   └── App.tsx            # Main shell with layout & authentication routing
     ├── package.json
     └── vite.config.ts
 ```
+
+## Multi-Account Architecture & Data Isolation
+
+1. **Ownership Model**:
+   - Every `Group`, `Post`, and `Schedule` belongs to an `Account` via foreign key `accountId` with `onDelete: Cascade`.
+   - `PostLog` references `accountId` with `onDelete: SetNull` so audit trails are never lost.
+   - Groups use a compound unique index `@@unique([accountId, fbGroupId])`. Two different Facebook accounts can both target group `12345` independently.
+
+2. **Backend Guardrails**:
+   - Resource listing endpoints (`/groups`, `/posts`, `/schedules`, `/logs`, `/logs/stats`) strictly require `?accountId=<id>`. If omitted, they return an empty set `[]` to prevent multi-tenant data leakage.
+   - Creating a schedule verifies that the `postId` and all `groupIds` belong to the same `accountId` as the schedule. If any item belongs to another account, the API rejects the request with HTTP 400 `CROSS_ACCOUNT_ASSOCIATION_FORBIDDEN`.
+
+3. **Frontend Synchronization**:
+   - `AccountContext` stores `selectedAccountId` in `localStorage`.
+   - The sticky `Topbar` provides instant switching across accounts.
+   - When no accounts exist, pages render `NoAccountsCard` prompting the user to create or import a session in the Session page.
 
 ## Data Flow
 
 ### Posting Execution Flow
 
 ```
-node-cron trigger
+node-cron tick
     │
     ▼
 Scheduler Service
-  - Load schedule from DB
-  - Resolve groups list
-  - Resolve post content + images
+  - Find active schedules due for execution
+  - Verify account is active and schedule is not already RUNNING
+  - Load schedule's account proxy configuration (if set)
+  - Load target post & assigned groups
     │
-    ▼ (for each group, with random delay)
+    ▼ (sequential iteration over groups with randomized delay)
 Posting Engine (Playwright)
-  - Load saved session/cookies
+  - Launch browser context with stealth + WebGL/WebRTC spoofing + account proxy
+  - Invalidate & assert session active via assertSessionActive()
   - Navigate to group URL
-  - Fill post content
-  - Attach images (if any)
-  - Submit post
-  - Capture result
+  - Enter content via direct input insertion (no accidental mentions)
+  - Attach images via setInputFiles
+  - Click Post & wait for DOM confirmation
+  - On failure: save screenshot (.png) and DOM (.html) to logs/
     │
     ▼
 PostLog (DB)
-  - status: SUCCESS | FAILED
-  - error message if failed
-  - timestamp
+  - Record SUCCESS or FAILED with error message and accountId
+  - Update schedule.lastRunAt & schedule.nextRunAt
 ```
 
-### Session Setup Flow
+### Session Onboarding Flow (Local vs VPS)
 
 ```
-User clicks "Setup Session"
-    │
-    ▼
-Backend opens Playwright (headed mode)
-  - Opens facebook.com/login
-  - User manually logs in
-  - 2FA handled by user
-    │
-    ▼
-Backend detects successful login
-  - Saves browser cookies + storage to sessions/<name>.json
-  - Marks Account as active in DB
-    │
-    ▼
-Future posting loads saved session
-  - No re-login needed until session expires
+Option A: Local Headed Login
+User clicks "Setup Session" ──► Backend launches headed Chrome ──► User logs in & passes 2FA ──► Session saved to backend/sessions/<id>.json
+
+Option B: Headless VPS Session Import
+User exports session JSON locally ──► In VPS Dashboard, clicks "Import Session" ──► Uploads JSON & optional proxy ──► Session saved to backend/sessions/<id>.json
 ```

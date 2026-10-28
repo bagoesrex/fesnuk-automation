@@ -17,8 +17,11 @@ A self-hosted automation system for scheduling and posting content (text + image
 
 ## Key Features
 
+- **Multi-Account Data Isolation**: Complete workspace separation across Facebook accounts. Groups, posts, schedules, logs, and telemetry are strictly scoped per account. Supports multi-account targeting of the same Facebook group via compound unique keys (`[accountId, fbGroupId]`) and prevents cross-account association with strict backend validation.
+- **Sticky Topbar Account Switcher**: Global account switcher in the topbar with live connection status, active proxy badges, and zero-account onboarding empty states across all pages.
 - **Dashboard Security & Auth**: Master Admin Password with JWT session tokens and brute-force protection (lockout after 5 failed attempts).
 - **Vercel + VPS Architecture Ready**: Deploy the frontend on Vercel and backend API on VPS with CORS protection.
+- **Modern Light Theme & Mobile Responsive**: Clean, responsive layout optimized for mobile screens, tablets, and desktop workstations.
 - **Session Export & Import (VPS Friendly)**: Authenticate Facebook sessions locally via headed browser, export the session JSON, and import directly into headless VPS instances without GUI / X11. Features automatic cookie rotation persistence and proactive logout detection (`assertSessionActive`).
 - **Proxy Support per Account**: Assign Residential or 4G Mobile proxy (HTTP/SOCKS5) per account to safely run on VPS.
 - **Hardware & Anti-Detection Spoofing**: WebGL GPU masking (spoofs SwiftShader to NVIDIA), WebRTC IP leak blocking, natural typing cadence, direct input text insertion (avoids accidental mention tags), and human-like cursor curves.
